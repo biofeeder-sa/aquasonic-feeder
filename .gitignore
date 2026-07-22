@@ -1,0 +1,26 @@
+# Build / compile output
+output/
+*.elf
+*.eep
+*.bin
+*.o
+*.a
+*.d
+
+# Keep flashable hex if generated at repo root (optional)
+!*.hex
+
+# IDE / OS
+.vscode/*
+!.vscode/arduino.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Local secrets / credentials
+.env
+*.pem
+credentials.*

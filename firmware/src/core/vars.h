@@ -1,0 +1,18 @@
+﻿#ifndef PROVIC_UNO_VARIABLES_H_
+#define PROVIC_UNO_VARIABLES_H_
+#include "core/config.h"
+#include "core/app_state.h"
+#include "comm/xbee_buffers.h"
+#include "state/rtc_cache.h"
+#include "variables/GlobalVariables.h"
+#include "variables/var_access.h"
+#include "variables/var_io.h"
+#include "acs/acs_sensor.h"
+#include "actuators/actuators.h"
+#include "rtc/rtc.h"
+#include "dosage/dosage.h"
+#include "eeprom/eeprom_store.h"
+#include "eeprom/eeprom_config.h"
+#include "sensors/sensors.h"
+#include "xbee/xbee.h"
+#endif
