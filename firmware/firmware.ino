@@ -1,5 +1,5 @@
 // ALIMENTADOR Aquasonic (ATmega 2560)
-// Base: biomatic-feeder v00.00.27 â€” proyecto modularizado
+// Base: biomatic-feeder v00.00.27 proyecto modularizado
 #include <math.h>
 #include <avr/io.h>
 #include <stdint.h>
