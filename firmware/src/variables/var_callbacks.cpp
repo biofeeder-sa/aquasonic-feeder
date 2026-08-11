@@ -6,6 +6,8 @@
 #include "eeprom/eeprom_config.h"
 #include "state/rtc_cache.h"
 #include "xbee/xbee.h"
+#include "acs/motor_wear_monitor.h"
+#include "acs/x2_blade_monitor.h"
 bool varWriteCopySave(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
   copyVarWireFromFrame(row, posLSB, frame);
   saveInEeprom(row);
@@ -37,6 +39,8 @@ bool varWriteAlarmMask(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& c
     bitWrite(VAR_WIRE_BYTE(VAR_ALARM_MASK, 3), 3, 1);
   }
   saveInEeprom(row);
+  motorWearApplyAlarmMask();
+  x2BladeApplyAlarmMask();
   countByte = transferVar[row][VAR_SIZE];
   return true;
 }
@@ -110,6 +114,81 @@ bool varWriteCycleGrams(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& 
   }
   return true;
 }
+bool varWriteX2BladeAck(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
+  copyVarWireFromFrame(row, posLSB, frame);
+  x2BladeHandleAckWrite(VAR_WIRE_BYTE(row, 2));
+  VAR_WIRE_BYTE(row, 2) = 0;
+  countByte = transferVar[row][VAR_SIZE];
+  return true;
+}
+bool varWriteX2BladeAmpPct(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
+  countByte = transferVar[row][VAR_SIZE];
+  const uint8_t pct = frame[posLSB + 2];
+  if (pct >= 10 && pct <= 45) {
+    copyVarWireFromFrame(row, posLSB, frame);
+    saveInEeprom(row);
+  }
+  return true;
+}
+bool varWriteX2BladeMinSwing(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
+  countByte = transferVar[row][VAR_SIZE];
+  const uint8_t swing = frame[posLSB + 2];
+  if (swing >= 1 && swing <= 100) {
+    copyVarWireFromFrame(row, posLSB, frame);
+    saveInEeprom(row);
+  }
+  return true;
+}
+bool varWriteX2MotorReset(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
+  copyVarWireFromFrame(row, posLSB, frame);
+  x2WearHandleMotorResetWrite(VAR_WIRE_BYTE(row, 2));
+  VAR_WIRE_BYTE(row, 2) = 0;
+  countByte = transferVar[row][VAR_SIZE];
+  return true;
+}
+bool varWriteX3MotorReset(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
+  copyVarWireFromFrame(row, posLSB, frame);
+  x3WearHandleMotorResetWrite(VAR_WIRE_BYTE(row, 2));
+  VAR_WIRE_BYTE(row, 2) = 0;
+  countByte = transferVar[row][VAR_SIZE];
+  return true;
+}
+bool varWriteX2WearPct(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
+  countByte = transferVar[row][VAR_SIZE];
+  const uint8_t pct = frame[posLSB + 2];
+  if (pct >= 1) {
+    copyVarWireFromFrame(row, posLSB, frame);
+    saveInEeprom(row);
+  }
+  return true;
+}
+bool varWriteX2WearEmaAlpha(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
+  countByte = transferVar[row][VAR_SIZE];
+  const uint8_t alpha = frame[posLSB + 2];
+  if (alpha >= 1 && alpha <= 100) {
+    copyVarWireFromFrame(row, posLSB, frame);
+    saveInEeprom(row);
+  }
+  return true;
+}
+bool varWriteX3WearPct(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
+  countByte = transferVar[row][VAR_SIZE];
+  const uint8_t pct = frame[posLSB + 2];
+  if (pct >= 1) {
+    copyVarWireFromFrame(row, posLSB, frame);
+    saveInEeprom(row);
+  }
+  return true;
+}
+bool varWriteX3WearEmaAlpha(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
+  countByte = transferVar[row][VAR_SIZE];
+  const uint8_t alpha = frame[posLSB + 2];
+  if (alpha >= 1 && alpha <= 100) {
+    copyVarWireFromFrame(row, posLSB, frame);
+    saveInEeprom(row);
+  }
+  return true;
+}
 const VarWriteHandlerFn kVarWriteHandlers[ROW] = {
   /* VAR_SETTING_BYTES      */ varWriteCopySave,
   /* VAR_SOFTWARE_VERSION   */ NULL,
@@ -149,11 +228,22 @@ const VarWriteHandlerFn kVarWriteHandlers[ROW] = {
   /* VAR_PROT_X3            */ varWriteCopySave,
   /* VAR_DISCONNECTED       */ varWriteCopySave,
   /* VAR_EMPTY_HOPPER       */ varWriteCopySave,
-  /* VAR_AMP_WARN_X2        */ varWriteCopySave,
-  /* VAR_AMP_WARN_X3        */ varWriteCopySave,
+  /* VAR_X3_WEAR_PCT        */ varWriteX3WearPct,
+  /* VAR_X3_WEAR_EMA_ALPHA  */ varWriteX3WearEmaAlpha,
   /* VAR_AMP_MAX_X2         */ NULL,
   /* VAR_AMP_MIN_X2         */ NULL,
   /* VAR_AMP_MAX_X3         */ NULL,
   /* VAR_AMP_MIN_X3         */ NULL,
+  /* VAR_X3_BASELINE_REF    */ NULL,
+  /* VAR_X3_BASELINE_SLOW   */ NULL,
+  /* VAR_X3_MOTOR_RESET     */ varWriteX3MotorReset,
+  /* VAR_X2_WEAR_PCT        */ varWriteX2WearPct,
+  /* VAR_X2_WEAR_EMA_ALPHA  */ varWriteX2WearEmaAlpha,
+  /* VAR_X2_BASELINE_REF    */ NULL,
+  /* VAR_X2_BASELINE_SLOW   */ NULL,
+  /* VAR_X2_MOTOR_RESET     */ varWriteX2MotorReset,
+  /* VAR_X2_BLADE_AMP_PCT   */ varWriteX2BladeAmpPct,
+  /* VAR_X2_BLADE_MIN_SWING */ varWriteX2BladeMinSwing,
+  /* VAR_X2_BLADE_ACK       */ varWriteX2BladeAck,
   /* VAR_RESET_EEPROM       */ varWriteCopySave,
 };

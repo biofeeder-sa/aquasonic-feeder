@@ -40,11 +40,15 @@ typedef struct {
   unsigned int ampX3;
   unsigned int highestValueAmpX2;
   unsigned int emptyHopperint;
+  bool hadX2DisconnectedInCycle;
+  bool hadX3DisconnectedInCycle;
+  bool hadEmptyHopperInCycle;
 } AcsState;
 
 extern AcsState acs;
 
 void acsInit(void);
+void acsResetWearCycleFlags(void);
 void configACS();
 void sendAlarm(unsigned char pin);
 void sensorAmp(unsigned char output);

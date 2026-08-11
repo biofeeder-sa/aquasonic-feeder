@@ -110,8 +110,39 @@ void loop()
     Serial.print(", ");
     Serial.print(acs.previousAmpMaxX3);
     Serial.print(", ");
-    Serial.println(acs.ampX3);
-    }
+    Serial.print(acs.ampX3);
+#if MOTOR_WEAR_DEBUG
+    Serial.print(", ");
+    Serial.print(x2WearBaselineRef());
+    Serial.print(", ");
+    Serial.print(x2WearBaselineSlow());
+    Serial.print(", ");
+    Serial.print(x2WearHealthyCount());
+    Serial.print(", ");
+    Serial.print(x2WearAlarmActive() ? 1 : 0);
+    Serial.print(", ");
+    Serial.print(bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 2), 0));
+    Serial.print(", ");
+    Serial.print(x3WearBaselineRef());
+    Serial.print(", ");
+    Serial.print(x3WearBaselineSlow());
+    Serial.print(", ");
+    Serial.print(x3WearHealthyCount());
+    Serial.print(", ");
+    Serial.print(x3WearAlarmActive() ? 1 : 0);
+    Serial.print(", ");
+    Serial.print(bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 2), 1));
+    Serial.print(", ");
+    Serial.print(bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 2), 2));
+    Serial.print(", ");
+    Serial.print(bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 2), 3));
+    Serial.print(", ");
+    Serial.print(bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 2), 4));
+    Serial.print(", ");
+    Serial.print(x2BladeAlarmActive() ? 1 : 0);
+#endif
+    Serial.println();
+  }
   }
   /*    FUERA DEL RTC REAL    */
   //TODO: OPTIMIZACION DEL CONDICIONAL: CREAR FUNCION QUE EJECUTE EL SET DE LA HORA CUANDO ESTA SEA CONFIGURADA INICIALMENTE Y NUEVAMENTE

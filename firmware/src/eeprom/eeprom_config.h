@@ -4,6 +4,8 @@
 /* Direcciones EEPROM auxiliares (no estan en transferVar) */
 #define EEPROM_ADDR_AUX_DAY       0x4Cu
 #define EEPROM_ADDR_COMPARING_DAY 0xA3u
+#define EEPROM_ADDR_X2_WEAR_HEALTHY 0xEBu
+#define EEPROM_ADDR_X3_WEAR_HEALTHY 0xE8u
 void initConfig(void);
 void saveInEeprom(int row);
 void seedFactoryDefaults(void);

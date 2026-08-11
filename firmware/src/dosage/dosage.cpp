@@ -6,6 +6,9 @@
 #include <TimeLib.h>
 #include <EEPROM.h>
 #include "core/vars.h"
+#include "acs/acs_sensor.h"
+#include "acs/motor_wear_monitor.h"
+#include "acs/x2_blade_monitor.h"
 
 void Dosage_FeedRate(void)
 {
@@ -40,13 +43,14 @@ void Dosage_FeedRate(void)
       Serial.println(app.dosageRt.targetRevolutions);
       VAR_WIRE_BYTE(VAR_ALARMS, 5) = 0;
       digitalWrite(X1, ON);
-      Serial.println(F("Encender X1"));
+      // Serial.println(F("Encender X1"));
       app.dosageRt.motorX1StartMs = millis();
       acs.tiempoAnteriorVueltas = millis();
       acs.previousAmpMaxX2 = 0;
       acs.previousAmpMinX2 = 10000;
       acs.previousAmpMaxX3 = 0;
       acs.previousAmpMinX3 = 10000;
+      acsResetWearCycleFlags();
     }
     if(cycleGrams != 0
       &&
@@ -108,6 +112,30 @@ void Dosage_FeedRate(void)
       }
       Serial.print(F("Tiempo de dosificacion: "));
       Serial.println(app.dosageRt.dosingTotalMs);
+      {
+        uint32_t x2CycleMs = 0;
+        if (app.dosageRt.sprayerStartMs != 0) {
+          if (app.dosageRt.dosingStartMs != 0) {
+            x2CycleMs = (app.dosageRt.dosingStartMs - app.dosageRt.sprayerStartMs) +
+                        app.dosageRt.dosingTotalMs;
+          } else {
+            x2CycleMs = millis() - app.dosageRt.sprayerStartMs;
+          }
+        }
+        const bool emptyHopperAtEnd =
+            (bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 5), 6) != 0);
+        x2WearOnCycleEnd(acs.previousAmpMaxX2, x2CycleMs, acs.highCurrentX2,
+                         acs.hadX2DisconnectedInCycle, acs.hadX3DisconnectedInCycle,
+                         emptyHopperAtEnd);
+        x3WearOnCycleEnd(acs.previousAmpMaxX3, app.dosageRt.dosingTotalMs, acs.highCurrentX3,
+                         acs.hadX2DisconnectedInCycle, acs.hadX3DisconnectedInCycle,
+                         emptyHopperAtEnd);
+        x2BladeOnCycleEnd(acs.previousAmpMaxX2, (uint8_t)acs.nPicos, acs.inactividadFlag,
+                          bitRead(VAR_WIRE_BYTE(VAR_SETTING_BYTES, 3), 4) == TRUE,
+                          acs.corriente_maxima - acs.corriente_minima, acs.highCurrentX2,
+                          acs.hadX2DisconnectedInCycle);
+        acsResetWearCycleFlags();
+      }
       app.dosageRt.dosingStartMs = 0;
       delay(1000);
       digitalWrite(X2 , OFF);

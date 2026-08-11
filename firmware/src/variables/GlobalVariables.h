@@ -60,13 +60,24 @@
 #define VAR_PROT_X3            35
 #define VAR_DISCONNECTED       36
 #define VAR_EMPTY_HOPPER       37
-#define VAR_AMP_WARN_X2        38
-#define VAR_AMP_WARN_X3        39
+#define VAR_X3_WEAR_PCT        38
+#define VAR_X3_WEAR_EMA_ALPHA  39
 #define VAR_AMP_MAX_X2         40
 #define VAR_AMP_MIN_X2         41
 #define VAR_AMP_MAX_X3         42
 #define VAR_AMP_MIN_X3         43
-#define VAR_RESET_EEPROM       44
+#define VAR_X3_BASELINE_REF    44
+#define VAR_X3_BASELINE_SLOW   45
+#define VAR_X3_MOTOR_RESET     46
+#define VAR_X2_WEAR_PCT        47
+#define VAR_X2_WEAR_EMA_ALPHA  48
+#define VAR_X2_BASELINE_REF    49
+#define VAR_X2_BASELINE_SLOW   50
+#define VAR_X2_MOTOR_RESET     51
+#define VAR_X2_BLADE_AMP_PCT   52
+#define VAR_X2_BLADE_MIN_SWING 53
+#define VAR_X2_BLADE_ACK       54
+#define VAR_RESET_EEPROM       55
 
 /* Columnas (igual que hub) */
 #define VAR_ID              0
@@ -78,7 +89,7 @@
 #define VAR_LOG_TIME        8
 #define VAR_VALUE           9
 
-#define ROW 45
+#define ROW 56
 #define COL 45   /* 9 meta + hasta 36 bytes VALUE por fila */
 
 extern uint8_t transferVar[ROW][COL];

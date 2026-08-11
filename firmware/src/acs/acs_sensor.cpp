@@ -1,4 +1,5 @@
 ﻿#include "acs/acs_sensor.h"
+#include "acs/motor_wear_monitor.h"
 #include "core/vars.h"
 
 AcsState acs = {};
@@ -8,6 +9,13 @@ void acsInit(void) {
   acs.corriente_minima = 10.0f;
   acs.previousAmpMinX2 = 10000;
   acs.previousAmpMinX3 = 10000;
+  acsResetWearCycleFlags();
+}
+
+void acsResetWearCycleFlags(void) {
+  acs.hadX2DisconnectedInCycle = false;
+  acs.hadX3DisconnectedInCycle = false;
+  acs.hadEmptyHopperInCycle = false;
 }
 
 void configACS() {
@@ -57,12 +65,10 @@ void sendAlarm(unsigned char pin) {
   unsigned int amp = 0;
   unsigned char out = 0;
   unsigned int ampMax = 1000;
-  uint16_t ampWarning = 0;
   amp = convertADCtoAMP(pin);
   if (pin == ANALOGX3) {
     out = X3;
     ampMax = (VAR_WIRE_BYTE(VAR_PROT_X3, 2) * 100);
-    ampWarning = (VAR_WIRE_BYTE(VAR_AMP_WARN_X3, 2) << 8) | VAR_WIRE_BYTE(VAR_AMP_WARN_X3, 3);
     attemp = acs.attempX3;
     VAR_WIRE_BYTE(VAR_AMP_X3, 2) = highByte(amp);
     VAR_WIRE_BYTE(VAR_AMP_X3, 3) = lowByte(amp);
@@ -76,20 +82,11 @@ void sendAlarm(unsigned char pin) {
       VAR_WIRE_BYTE(VAR_AMP_MIN_X3, 3) = lowByte(amp);
       acs.previousAmpMinX3 = amp;
     }
-    if (amp >= ampWarning) {
-      Serial.println(F("Alarma de advertencia en motor X3"));
-      Serial.print(amp);
-      Serial.print(F(" Amp - "));
-      Serial.println(ampWarning);
-      bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 2), 1, 1);
-    } else {
-      bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 2), 1, 0);
-    }
+    x3WearSyncAlarm(((uint32_t)amp >= (uint32_t)ampMax) || acs.highCurrentX3);
   } else if (pin == ANALOGX2) {
     acs.corriente_actual = amp / 100.0;
     out = X2;
     ampMax = (VAR_WIRE_BYTE(VAR_PROT_X2, 2) * 100);
-    ampWarning = (VAR_WIRE_BYTE(VAR_AMP_WARN_X2, 2) << 8) | VAR_WIRE_BYTE(VAR_AMP_WARN_X2, 3);
     attemp = acs.attempX2;
     VAR_WIRE_BYTE(VAR_AMP_X2, 2) = highByte(amp);
     VAR_WIRE_BYTE(VAR_AMP_X2, 3) = lowByte(amp);
@@ -102,11 +99,7 @@ void sendAlarm(unsigned char pin) {
       VAR_WIRE_BYTE(VAR_AMP_MIN_X2, 3) = lowByte(amp);
       acs.previousAmpMinX2 = amp;
     }
-    if (amp >= ampWarning) {
-      bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 2), 0, 1);
-    } else {
-      bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 2), 0, 0);
-    }
+    x2WearSyncAlarm(((uint32_t)amp >= (uint32_t)ampMax) || acs.highCurrentX2);
     if ((digitalRead(X2) == ON && (millis() - app.dosageRt.sprayerStartMs >= 500)) && (digitalRead(X3) == OFF)) {
       if (acs.emptyHopperint < amp && amp < 500) {
         acs.emptyHopperint = amp + 15;
@@ -170,6 +163,9 @@ void sendAlarm(unsigned char pin) {
       if (amp <= VAR_WIRE_BYTE(VAR_DISCONNECTED, 2)) {
         bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 1, 1);
         bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 4, 0);
+        if (digitalRead(X2) == ON) {
+          acs.hadX2DisconnectedInCycle = true;
+        }
       } else {
         bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 1, 0);
       }
@@ -183,6 +179,9 @@ void sendAlarm(unsigned char pin) {
       acs.emptyHopperint = ((VAR_WIRE_BYTE(VAR_EMPTY_HOPPER, 2) << 8) + VAR_WIRE_BYTE(VAR_EMPTY_HOPPER, 3));
       if ((acs.highestValueAmpX2 > (VAR_WIRE_BYTE(VAR_DISCONNECTED, 2) + 1)) && (acs.highestValueAmpX2 <= acs.emptyHopperint)) {
         bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 6, 1);
+        if (digitalRead(X3) == ON) {
+          acs.hadEmptyHopperInCycle = true;
+        }
       } else {
         bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 6, 0);
       }
@@ -193,6 +192,9 @@ void sendAlarm(unsigned char pin) {
       if (amp <= VAR_WIRE_BYTE(VAR_DISCONNECTED, 2)) {
         bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 2, 1);
         bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 5, 0);
+        if (digitalRead(X3) == ON) {
+          acs.hadX3DisconnectedInCycle = true;
+        }
       } else {
         bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 2, 0);
       }

@@ -8,6 +8,8 @@
 #include "variables/var_access.h"
 #include "variables/var_io.h"
 #include "acs/acs_sensor.h"
+#include "acs/motor_wear_monitor.h"
+#include "acs/x2_blade_monitor.h"
 #include "actuators/actuators.h"
 #include "rtc/rtc.h"
 #include "dosage/dosage.h"
