@@ -481,6 +481,18 @@ void create_data_Alarms(void)
       cont++;
     }
     xbee.alarmsVarCount++;
+    for (int i = 0; i < ((VAR_WIRE_LEN(VAR_AMP_MAX_X2)) ); ++i)
+    {
+      xbee.alarms[cont] = VAR_WIRE_BYTE(VAR_AMP_MAX_X2, i);
+      cont++;
+    }
+    xbee.alarmsVarCount++;
+    for (int i = 0; i < ((VAR_WIRE_LEN(VAR_AMP_MAX_X3)) ); ++i)
+    {
+      xbee.alarms[cont] = VAR_WIRE_BYTE(VAR_AMP_MAX_X3, i);
+      cont++;
+    }
+    xbee.alarmsVarCount++;
     // Si esta habilitado el bit para pesar y si esta calibrado y esta conectado las celdas de carga
     // if( (bitRead(VAR_WIRE_BYTE(VAR_SETTING_BYTES, 3) , 3) == TRUE) && (bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 4) , 0 ) == 0) && 
     //     (bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 4) , 1 ) == 0) ) {
