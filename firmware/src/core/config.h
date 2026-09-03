@@ -44,6 +44,7 @@
 #define CMD_INIT_ALARM              0x23
 #define CMD_ERROR                   0xEE
 #define CMD_ACK                     0x41
+#define CMD_MOTOR_CHANGE_CONFIRM    0xC0
 #define CMD_CALIBRATION             0xCA
 #define CMD_API_TX_STATUS           0x89
 #define CMD_API_MODEM_STATUS        0x8A

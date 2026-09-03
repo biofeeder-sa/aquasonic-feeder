@@ -6,6 +6,10 @@
 #define EEPROM_ADDR_COMPARING_DAY 0xA3u
 #define EEPROM_ADDR_X2_WEAR_HEALTHY 0xEBu
 #define EEPROM_ADDR_X3_WEAR_HEALTHY 0xE8u
+#define EEPROM_ADDR_MOTOR_CHANGE_PENDING 0xF8u
+#define EEPROM_ADDR_X2_MOTOR_BACKUP      0xF9u
+#define EEPROM_ADDR_X3_MOTOR_BACKUP      0x103u
+#define MOTOR_WEAR_BACKUP_SIZE           10u
 void initConfig(void);
 void saveInEeprom(int row);
 void seedFactoryDefaults(void);

@@ -1,10 +1,13 @@
 #include "acs/motor_wear_monitor.h"
+#include "acs/motor_runtime.h"
 #include "core/vars.h"
 #include "eeprom/eeprom_config.h"
 #include "variables/var_io.h"
 #include <EEPROM.h>
 
-#define WEAR_COMMISSION_CYCLES     10u
+#define MOTOR_REF_SAMPLES_DEFAULT  20u
+#define MOTOR_REF_SAMPLES_MIN      1u
+#define MOTOR_REF_SAMPLES_MAX      255u
 #define WEAR_EMA_ALPHA_DEFAULT     2u
 #define WEAR_EMA_ALPHA_MIN         1u
 #define WEAR_EMA_ALPHA_MAX         100u
@@ -16,7 +19,9 @@
 #define WEAR_AUTO_CONSECUTIVE      5u
 #define WEAR_PROFILE_DEV_HIGH_NUM  140u
 #define WEAR_PROFILE_DEV_LOW_NUM   60u
-#define WEAR_PROFILE_STEP_NUM      25u
+#define MOTOR_CHANGE_PCT_DEFAULT   40u
+#define MOTOR_CHANGE_PCT_MIN       1u
+#define MOTOR_CHANGE_PCT_MAX       255u
 #define WEAR_PROFILE_TRACKING_NUM  10u
 #define WEAR_PROFILE_CONSECUTIVE   5u
 #define WEAR_PROFILE_MIN_CYCLES    10u
@@ -26,6 +31,16 @@
 #define WEAR_PCT_DEFAULT           30u
 #define WEAR_PCT_MIN               1u
 #define WEAR_PCT_MAX               255u
+
+#define MOTOR_BACKUP_FLAG_WEAR_LATCHED  0x01u
+#define MOTOR_BACKUP_FLAG_WEAR_SLOW_ARM 0x02u
+#define MOTOR_CHANGE_PENDING_X2_BIT     0x01u
+#define MOTOR_CHANGE_PENDING_X3_BIT     0x02u
+
+#define MOTOR_CHANGE_CONFIRM_ACCEPT  0u
+#define MOTOR_CHANGE_CONFIRM_REVERT  1u
+#define MOTOR_CHANGE_X2              0u
+#define MOTOR_CHANGE_X3              1u
 
 typedef struct {
   uint8_t alarmByte;
@@ -51,6 +66,7 @@ typedef struct {
   uint8_t healthyCount;
   bool wearLatched;
   bool wearSlowArm;
+  bool changePending;
 } MotorWearState;
 
 static MotorWearState x2State;
@@ -129,6 +145,28 @@ static uint8_t wearThresholdPct(const MotorWearConfig* cfg) {
   return pct;
 }
 
+static uint8_t motorRefSampleCount(void) {
+  uint8_t n = VAR_WIRE_BYTE(VAR_MOTOR_REF_SAMPLES, 2);
+  if (n == 0xFF || n < MOTOR_REF_SAMPLES_MIN) {
+    n = MOTOR_REF_SAMPLES_DEFAULT;
+  }
+  if (n > MOTOR_REF_SAMPLES_MAX) {
+    n = MOTOR_REF_SAMPLES_MAX;
+  }
+  return n;
+}
+
+static uint8_t motorChangeStepPct(void) {
+  uint8_t pct = VAR_WIRE_BYTE(VAR_MOTOR_CHANGE_PCT, 2);
+  if (pct == 0xFF || pct < MOTOR_CHANGE_PCT_MIN) {
+    pct = MOTOR_CHANGE_PCT_DEFAULT;
+  }
+  if (pct > MOTOR_CHANGE_PCT_MAX) {
+    pct = MOTOR_CHANGE_PCT_MAX;
+  }
+  return pct;
+}
+
 static uint8_t wearEmaAlphaPct(const MotorWearConfig* cfg) {
   uint8_t alpha = VAR_WIRE_BYTE(cfg->varAlpha, 2);
   if (alpha == 0xFF || alpha < WEAR_EMA_ALPHA_MIN) {
@@ -155,6 +193,139 @@ static uint16_t wearMinCurrentCa(void) {
 
 static uint16_t absDiffU16(uint16_t a, uint16_t b) {
   return (a > b) ? (a - b) : (b - a);
+}
+
+static uint16_t backupEepromAddr(const MotorWearConfig* cfg) {
+  return (cfg->motorId == '2') ? EEPROM_ADDR_X2_MOTOR_BACKUP : EEPROM_ADDR_X3_MOTOR_BACKUP;
+}
+
+static uint8_t pendingBitForMotor(const MotorWearConfig* cfg) {
+  return (cfg->motorId == '2') ? MOTOR_CHANGE_PENDING_X2_BIT : MOTOR_CHANGE_PENDING_X3_BIT;
+}
+
+static bool isMotorChangePending(const MotorWearConfig* cfg, const MotorWearState* st) {
+  (void)cfg;
+  return st->changePending;
+}
+
+static void setMotorChangePending(const MotorWearConfig* cfg, MotorWearState* st, bool pending) {
+  st->changePending = pending;
+  uint8_t flags = EEPROM.read(EEPROM_ADDR_MOTOR_CHANGE_PENDING);
+  if (flags == 0xFF) {
+    flags = 0;
+  }
+  if (pending) {
+    flags |= pendingBitForMotor(cfg);
+  } else {
+    flags &= (uint8_t)~pendingBitForMotor(cfg);
+  }
+  EEPROM.update(EEPROM_ADDR_MOTOR_CHANGE_PENDING, flags);
+}
+
+static uint32_t runtimeSecondsForMotor(const MotorWearConfig* cfg) {
+  return (cfg->motorId == '2') ? motorRuntimeX2Seconds() : motorRuntimeX3Seconds();
+}
+
+static void writeRuntimeSecondsForMotor(const MotorWearConfig* cfg, uint32_t seconds) {
+  if (cfg->motorId == '2') {
+    motorRuntimeWriteX2(seconds);
+  } else {
+    motorRuntimeWriteX3(seconds);
+  }
+}
+
+static void resetRuntimeForMotor(const MotorWearConfig* cfg) {
+  if (cfg->motorId == '2') {
+    motorRuntimeResetX2();
+  } else {
+    motorRuntimeResetX3();
+  }
+}
+
+static void saveMotorBackup(const MotorWearConfig* cfg, const MotorWearState* st) {
+  const uint16_t addr = backupEepromAddr(cfg);
+  const uint16_t ref = readVarU16(cfg, cfg->varRef);
+  const uint16_t slow = readVarU16(cfg, cfg->varSlow);
+  const uint32_t runtime = runtimeSecondsForMotor(cfg);
+  uint8_t flags = 0;
+  if (st->wearLatched) {
+    flags |= MOTOR_BACKUP_FLAG_WEAR_LATCHED;
+  }
+  if (st->wearSlowArm) {
+    flags |= MOTOR_BACKUP_FLAG_WEAR_SLOW_ARM;
+  }
+
+  EEPROM.update(addr + 0, highByte(ref));
+  EEPROM.update(addr + 1, lowByte(ref));
+  EEPROM.update(addr + 2, highByte(slow));
+  EEPROM.update(addr + 3, lowByte(slow));
+  EEPROM.update(addr + 4, st->healthyCount);
+  EEPROM.update(addr + 5, (uint8_t)(runtime >> 24));
+  EEPROM.update(addr + 6, (uint8_t)(runtime >> 16));
+  EEPROM.update(addr + 7, (uint8_t)(runtime >> 8));
+  EEPROM.update(addr + 8, (uint8_t)(runtime));
+  EEPROM.update(addr + 9, flags);
+
+#if MOTOR_WEAR_DEBUG
+  printWearTag(cfg);
+  Serial.print(F("backup saved ref="));
+  Serial.print(ref);
+  Serial.print(F(" slow="));
+  Serial.print(slow);
+  Serial.print(F(" runtime="));
+  Serial.println(runtime);
+#endif
+}
+
+static bool loadMotorBackup(const MotorWearConfig* cfg, uint16_t* ref, uint16_t* slow,
+                            uint8_t* healthyCount, uint32_t* runtime, bool* wearLatched,
+                            bool* wearSlowArm) {
+  const uint16_t addr = backupEepromAddr(cfg);
+  const uint8_t refMsb = EEPROM.read(addr + 0);
+  const uint8_t refLsb = EEPROM.read(addr + 1);
+  if (refMsb == 0xFF && refLsb == 0xFF) {
+    return false;
+  }
+
+  *ref = ((uint16_t)refMsb << 8) | refLsb;
+  *slow = ((uint16_t)EEPROM.read(addr + 2) << 8) | EEPROM.read(addr + 3);
+  *healthyCount = EEPROM.read(addr + 4);
+  if (*healthyCount == 0xFF) {
+    *healthyCount = 0;
+  }
+  *runtime = ((uint32_t)EEPROM.read(addr + 5) << 24) |
+             ((uint32_t)EEPROM.read(addr + 6) << 16) |
+             ((uint32_t)EEPROM.read(addr + 7) << 8) |
+             EEPROM.read(addr + 8);
+  const uint8_t flags = EEPROM.read(addr + 9);
+  *wearLatched = (flags & MOTOR_BACKUP_FLAG_WEAR_LATCHED) != 0;
+  *wearSlowArm = (flags & MOTOR_BACKUP_FLAG_WEAR_SLOW_ARM) != 0;
+  return (*ref > 0);
+}
+
+static void clearMotorBackup(const MotorWearConfig* cfg) {
+  const uint16_t addr = backupEepromAddr(cfg);
+  for (uint8_t i = 0; i < MOTOR_WEAR_BACKUP_SIZE; i++) {
+    EEPROM.update(addr + i, 0xFF);
+  }
+}
+
+static void resetMotorActiveState(const MotorWearConfig* cfg, MotorWearState* st) {
+  st->commissioningSum = 0;
+  st->commissioningCount = 0;
+  st->autoDetectStreak = 0;
+  st->profileStreak = 0;
+  st->wearUnderStreak = 0;
+  st->healthyCount = 0;
+  st->wearLatched = false;
+  st->wearSlowArm = true;
+
+  writeVarU16(cfg, cfg->varRef, 0);
+  writeVarU16(cfg, cfg->varSlow, 0);
+  persistBaselines(cfg);
+  persistHealthyCount(cfg, st);
+  setWearAlarmBit(cfg, false);
+  resetRuntimeForMotor(cfg);
 }
 
 static void debugLog(const MotorWearConfig* cfg, MotorWearState* st, const __FlashStringHelper* tag) {
@@ -321,8 +492,9 @@ static bool isTrackingSlow(uint16_t cycleImax, uint16_t baselineRef, uint16_t ba
 }
 
 static bool isStepFromSlow(uint16_t cycleImax, uint16_t baselineRef, uint16_t baselineSlow) {
+  const uint8_t stepPct = motorChangeStepPct();
   return ((uint32_t)absDiffU16(cycleImax, baselineSlow) * 100u) >
-         ((uint32_t)baselineRef * WEAR_PROFILE_STEP_NUM);
+         ((uint32_t)baselineRef * stepPct);
 }
 
 static bool tryAutoDetectProfileChange(const MotorWearConfig* cfg, MotorWearState* st, uint16_t cycleImax) {
@@ -409,32 +581,94 @@ static bool isHealthyCycle(uint16_t cycleImax, uint32_t dosingMs, bool hadProtec
   return true;
 }
 
-static void resetMotor(const MotorWearConfig* cfg, MotorWearState* st, bool autoDetected) {
+static void beginAutoMotorChange(const MotorWearConfig* cfg, MotorWearState* st) {
+  saveMotorBackup(cfg, st);
+  resetMotorActiveState(cfg, st);
+  setMotorChangePending(cfg, st, true);
+  setMotorChangeAlarmBit(cfg, true);
+
+#if MOTOR_WEAR_DEBUG
+  printWearTag(cfg);
+  Serial.println(F("auto motor change pending"));
+#endif
+}
+
+static void acceptMotorChange(const MotorWearConfig* cfg, MotorWearState* st) {
+  if (!isMotorChangePending(cfg, st)) {
+    return;
+  }
+  clearMotorBackup(cfg);
+  setMotorChangePending(cfg, st, false);
+  setMotorChangeAlarmBit(cfg, false);
+
+#if MOTOR_WEAR_DEBUG
+  printWearTag(cfg);
+  Serial.println(F("motor change accepted"));
+#endif
+}
+
+static void revertMotorChange(const MotorWearConfig* cfg, MotorWearState* st) {
+  if (!isMotorChangePending(cfg, st)) {
+    return;
+  }
+
+  uint16_t ref = 0;
+  uint16_t slow = 0;
+  uint8_t healthyCount = 0;
+  uint32_t runtime = 0;
+  bool wearLatched = false;
+  bool wearSlowArm = true;
+
+  if (!loadMotorBackup(cfg, &ref, &slow, &healthyCount, &runtime, &wearLatched, &wearSlowArm)) {
+    clearMotorBackup(cfg);
+    setMotorChangePending(cfg, st, false);
+    setMotorChangeAlarmBit(cfg, false);
+    return;
+  }
+
   st->commissioningSum = 0;
   st->commissioningCount = 0;
   st->autoDetectStreak = 0;
   st->profileStreak = 0;
   st->wearUnderStreak = 0;
-  st->healthyCount = 0;
-  st->wearLatched = false;
-  st->wearSlowArm = true;
+  st->healthyCount = healthyCount;
+  st->wearLatched = wearLatched;
+  st->wearSlowArm = wearSlowArm;
 
-  writeVarU16(cfg, cfg->varRef, 0);
-  writeVarU16(cfg, cfg->varSlow, 0);
+  writeVarU16(cfg, cfg->varRef, ref);
+  writeVarU16(cfg, cfg->varSlow, slow);
   persistBaselines(cfg);
   persistHealthyCount(cfg, st);
-  setWearAlarmBit(cfg, false);
-  setMotorChangeAlarmBit(cfg, autoDetected);
+  writeRuntimeSecondsForMotor(cfg, runtime);
+  setWearAlarmBit(cfg, wearLatched);
+
+  clearMotorBackup(cfg);
+  setMotorChangePending(cfg, st, false);
+  setMotorChangeAlarmBit(cfg, false);
 
 #if MOTOR_WEAR_DEBUG
   printWearTag(cfg);
-  Serial.print(F("reset motor auto="));
-  Serial.print(autoDetected ? 1 : 0);
-  Serial.print(F(" motorChgAlarm="));
-  Serial.println(
-      bitRead(VAR_WIRE_BYTE(VAR_ALARMS, cfg->alarmByte), cfg->motorChangeAlarmBit));
-#else
-  (void)autoDetected;
+  Serial.print(F("motor change reverted ref="));
+  Serial.print(ref);
+  Serial.print(F(" runtime="));
+  Serial.println(runtime);
+#endif
+}
+
+static void resetMotor(const MotorWearConfig* cfg, MotorWearState* st, bool autoDetected) {
+  if (autoDetected) {
+    beginAutoMotorChange(cfg, st);
+    return;
+  }
+
+  clearMotorBackup(cfg);
+  setMotorChangePending(cfg, st, false);
+  resetMotorActiveState(cfg, st);
+  setMotorChangeAlarmBit(cfg, false);
+
+#if MOTOR_WEAR_DEBUG
+  printWearTag(cfg);
+  Serial.println(F("reset motor manual"));
 #endif
 }
 
@@ -446,6 +680,7 @@ static void initOne(const MotorWearConfig* cfg, MotorWearState* st) {
   st->wearUnderStreak = 0;
   st->wearLatched = false;
   st->wearSlowArm = true;
+  st->changePending = false;
 
   uint8_t storedHealthy = 0xFF;
   EEPROM.get(cfg->eepromHealthy, storedHealthy);
@@ -474,7 +709,19 @@ static void initOne(const MotorWearConfig* cfg, MotorWearState* st) {
     saveInEeprom(VAR_ALARM_MASK);
   }
 
-  if (isCommissioned(cfg) && st->healthyCount >= WEAR_COMMISSION_CYCLES) {
+  {
+    uint8_t pendingFlags = EEPROM.read(EEPROM_ADDR_MOTOR_CHANGE_PENDING);
+    if (pendingFlags == 0xFF) {
+      pendingFlags = 0;
+      EEPROM.update(EEPROM_ADDR_MOTOR_CHANGE_PENDING, pendingFlags);
+    }
+    st->changePending = (pendingFlags & pendingBitForMotor(cfg)) != 0;
+    if (st->changePending) {
+      setMotorChangeAlarmBit(cfg, true);
+    }
+  }
+
+  if (isCommissioned(cfg) && st->healthyCount >= motorRefSampleCount()) {
     evaluateWearFromSlow(cfg, st);
   } else {
     setWearAlarmBit(cfg, false);
@@ -516,6 +763,8 @@ static void onCycleEnd(const MotorWearConfig* cfg, MotorWearState* st,
     printWearTag(cfg);
     Serial.println(F("ciclo descartado"));
 #endif
+    st->profileStreak = 0;
+    st->autoDetectStreak = 0;
     return;
   }
 
@@ -544,10 +793,10 @@ static void onCycleEnd(const MotorWearConfig* cfg, MotorWearState* st,
     Serial.print(F("commissioning "));
     Serial.print(st->commissioningCount);
     Serial.print(F("/"));
-    Serial.println(WEAR_COMMISSION_CYCLES);
+    Serial.println(motorRefSampleCount());
 #endif
 
-    if (st->commissioningCount >= WEAR_COMMISSION_CYCLES) {
+    if (st->commissioningCount >= motorRefSampleCount()) {
       finalizeCommissioning(cfg, st);
       evaluateWearFromSlow(cfg, st);
     }
@@ -644,6 +893,43 @@ bool x3WearHandleMotorResetWrite(uint8_t command) {
     return true;
   }
   return false;
+}
+
+bool motorWearHandleChangeConfirm(uint8_t motor, uint8_t action) {
+  const MotorWearConfig* cfg = NULL;
+  MotorWearState* st = NULL;
+
+  if (motor == MOTOR_CHANGE_X2) {
+    cfg = &x2Cfg;
+    st = &x2State;
+  } else if (motor == MOTOR_CHANGE_X3) {
+    cfg = &x3Cfg;
+    st = &x3State;
+  } else {
+    return false;
+  }
+
+  if (!isMotorChangePending(cfg, st)) {
+    return false;
+  }
+
+  if (action == MOTOR_CHANGE_CONFIRM_ACCEPT) {
+    acceptMotorChange(cfg, st);
+    return true;
+  }
+  if (action == MOTOR_CHANGE_CONFIRM_REVERT) {
+    revertMotorChange(cfg, st);
+    return true;
+  }
+  return false;
+}
+
+bool motorWearChangePendingX2(void) {
+  return x2State.changePending;
+}
+
+bool motorWearChangePendingX3(void) {
+  return x3State.changePending;
 }
 
 uint16_t x2WearBaselineRef(void) { return readVarU16(&x2Cfg, x2Cfg.varRef); }

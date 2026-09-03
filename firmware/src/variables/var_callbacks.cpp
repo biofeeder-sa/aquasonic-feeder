@@ -1,4 +1,4 @@
-﻿#include <Arduino.h>
+#include <Arduino.h>
 #include <EEPROM.h>
 #include "core/vars.h"
 #include "variables/var_callbacks.h"
@@ -171,6 +171,24 @@ bool varWriteX2WearEmaAlpha(int row, uint8_t posLSB, const uint8_t* frame, uint8
   }
   return true;
 }
+bool varWriteMotorRefSamples(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
+  countByte = transferVar[row][VAR_SIZE];
+  const uint8_t n = frame[posLSB + 2];
+  if (n >= 1) {
+    copyVarWireFromFrame(row, posLSB, frame);
+    saveInEeprom(row);
+  }
+  return true;
+}
+bool varWriteMotorChangePct(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
+  countByte = transferVar[row][VAR_SIZE];
+  const uint8_t pct = frame[posLSB + 2];
+  if (pct >= 1) {
+    copyVarWireFromFrame(row, posLSB, frame);
+    saveInEeprom(row);
+  }
+  return true;
+}
 bool varWriteX3WearPct(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
   countByte = transferVar[row][VAR_SIZE];
   const uint8_t pct = frame[posLSB + 2];
@@ -228,6 +246,8 @@ const VarWriteHandlerFn kVarWriteHandlers[ROW] = {
   /* VAR_PROT_X3            */ varWriteCopySave,
   /* VAR_DISCONNECTED       */ varWriteCopySave,
   /* VAR_EMPTY_HOPPER       */ varWriteCopySave,
+  /* VAR_MOTOR_CHANGE_PCT   */ varWriteMotorChangePct,
+  /* VAR_MOTOR_REF_SAMPLES  */ varWriteMotorRefSamples,
   /* VAR_X3_WEAR_PCT        */ varWriteX3WearPct,
   /* VAR_X3_WEAR_EMA_ALPHA  */ varWriteX3WearEmaAlpha,
   /* VAR_AMP_MAX_X2         */ NULL,
@@ -245,5 +265,7 @@ const VarWriteHandlerFn kVarWriteHandlers[ROW] = {
   /* VAR_X2_BLADE_AMP_PCT   */ varWriteX2BladeAmpPct,
   /* VAR_X2_BLADE_MIN_SWING */ varWriteX2BladeMinSwing,
   /* VAR_X2_BLADE_ACK       */ varWriteX2BladeAck,
+  /* VAR_X2_MOTOR_RUNTIME   */ NULL,
+  /* VAR_X3_MOTOR_RUNTIME   */ NULL,
   /* VAR_RESET_EEPROM       */ varWriteCopySave,
 };

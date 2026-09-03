@@ -41,6 +41,10 @@ void x3WearSyncAlarm(bool hadProtection);
 bool x2WearHandleMotorResetWrite(uint8_t command);
 bool x3WearHandleMotorResetWrite(uint8_t command);
 
+bool motorWearHandleChangeConfirm(uint8_t motor, uint8_t action);
+bool motorWearChangePendingX2(void);
+bool motorWearChangePendingX3(void);
+
 uint16_t x2WearBaselineRef(void);
 uint16_t x2WearBaselineSlow(void);
 uint8_t x2WearHealthyCount(void);

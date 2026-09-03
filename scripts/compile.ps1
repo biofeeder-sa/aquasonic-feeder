@@ -20,6 +20,7 @@ $IncludeFlag = "-I$($Fso.GetFolder((Join-Path $SketchDir 'src')).ShortPath) -I$(
     --library $TimeLib `
     --build-property "compiler.cpp.extra_flags=$IncludeFlag" `
     --build-property "compiler.c.extra_flags=$IncludeFlag" `
+    --output-dir "$ProjectRoot\output" `
     $SketchDir
 
 if ($LASTEXITCODE -ne 0) {

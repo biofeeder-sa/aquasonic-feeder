@@ -110,16 +110,24 @@ Los cuatro bytes de valor se acceden como `VAR_WIRE_BYTE(VAR_ALARMS, 2)` … `5`
 
 #### Byte lógico 3 (índice 2) — Desgaste y cambio de motor (ACS)
 
-| Bit   | Motor | Descripción |
-|-------|-------|-------------|
-| **0** | X2 (aspersor) | **Desgaste:** `baseline_slow` ≥ `ref × (1 + AC 0x19%)`. Se limpia tras 2 ciclos sanos con `I_max` bajo umbral. |
-| **1** | X3 (dosificador) | **Desgaste:** `baseline_slow` ≥ `ref × (1 + AC 0x0A%)`. Misma lógica de clear. |
-| **2** | X2 | **Cambio de motor detectado:** auto-reset por perfil distinto o caída post-desgaste. Se limpia con `AC 0x1D = 0x01` (reset manual). |
-| **3** | X3 | **Cambio de motor detectado.** Se limpia con `AC 0x18 = 0x01`. |
-| **4** | X2 | **Aspa desprendida:** sin vueltas + `I_max` ≪ referencia X2 (≈ &lt; 25 % de `ref`). Se distingue de tolva vacía (~60 % de `ref`). Latch tras 2 ciclos; clear con 2 ciclos sanos o `AC 0x20 = 0x01`. |
-| 5–7   | — | *Sin uso*. |
+| Bit   | Motor             | Descripción                                                       |
+|-------|-------------------|-------------------------------------------------------------------|
+| **0** | X2 (aspersor)     | **Desgaste:** `baseline_slow` ≥ `ref × (1 + AC 0x19%)`.           | 
+|       |                   | Se limpia tras 2 ciclos sanos con `I_max` bajo umbral.            |
+| **1** | X3 (dosificador)  | **Desgaste:** `baseline_slow` ≥ `ref × (1 + AC 0x0A%)`.           |
+|       |                   | Misma lógica de clear.                                            |
+| **2** | X2                | **Cambio de motor detectado:** auto-reset pendiente de confirmación |
+|       |                   | (`0xC0`). Se limpia al aceptar/revertir o con `AC 0x1D = 0x01`.   |
+| **3** | X3                | **Cambio de motor detectado.** Se limpia con `0xC0` o `AC 0x18`.  |
+| **4** | X2                | **Aspa desprendida:** sin vueltas + `I_max` ≪ referencia          |
+|       |                   | X2 (≈ &lt; 25 % de `ref`). Se distingue de tolva vacía            |   
+|       |                   | (~60 % de `ref`). Latch tras 2 ciclos; clear con 2 ciclos sanos   |
+|       |                   | o `AC 0x20 = 0x01`.                                               |
+| 5–7   |         —         | *Sin uso*.                                                        |
 
-Las alarmas de **desgaste** reflejan el estado latcheado del monitor (`slow` vs referencia). Las de **cambio de motor** se activan solo en auto-reset (no en reset remoto voluntario).
+Las alarmas de **desgaste** reflejan el estado latcheado del monitor (`slow` vs referencia). Las de **cambio de motor** se activan en auto-detección pendiente de confirmación (no en reset remoto voluntario). Ver trama **`0xC0`** más abajo.
+
+Los ciclos con **tolva vacía al final** (bit 6, byte índice 5) se descartan para desgaste, cambio de motor, comisionamiento y runtime; además reinician las rachas de detección de perfil/caída.
 
 #### Byte lógico 2 (índice 3) — Ciclo de alimentación y energía
 
@@ -185,11 +193,13 @@ Unidades de corriente: **centiamperios (cA)** — p. ej. 140 mA = 14 cA.
 
 | ID wire   | Variable                | Uso |
 |-----------|-------------------------|-----|
+| `AC 0x09` | `VAR_MOTOR_CHANGE_PCT` | Umbral de salto para detección de cambio de motor por perfil (% sobre `ref`, **compartido X2/X3**, default **40**, rango 1–255). |
+| `AC 0x0C` | `VAR_MOTOR_REF_SAMPLES`| Ciclos válidos para calcular `ref` al comisionar (**compartido X2/X3**, default **20**, rango 1–255). |
 | `AC 0x0A` | `VAR_X3_WEAR_PCT`       | Umbral de desgaste (% sobre referencia, default 30, rango 1–255). |
 | `AC 0x0B` | `VAR_X3_WEAR_EMA_ALPHA` | Factor α de la EMA de `slow` (% por ciclo, default 2, rango 1–100). |
 | `AC 0x16` | `VAR_X3_BASELINE_REF`   | Referencia de corriente nominal (solo lectura remota). |
 | `AC 0x17` | `VAR_X3_BASELINE_SLOW`  | Baseline lenta EMA (solo lectura). |
-| `AC 0x18` | `VAR_X3_MOTOR_RESET`    | Escritura `0x01` = reset de baseline / recommissioning; limpia alarma de cambio de motor. |
+| `AC 0x18` | `VAR_X3_MOTOR_RESET`    | Escritura `0x01` = reset / recommissioning; limpia alarma de cambio de motor y runtime X3. |
 
 #### X2 — aspersor
 
@@ -199,10 +209,28 @@ Unidades de corriente: **centiamperios (cA)** — p. ej. 140 mA = 14 cA.
 | `AC 0x1A` | `VAR_X2_WEAR_EMA_ALPHA` | Factor α EMA (default 2). |
 | `AC 0x1B` | `VAR_X2_BASELINE_REF`   | Referencia (solo lectura). |
 | `AC 0x1C` | `VAR_X2_BASELINE_SLOW`  | Baseline lenta (solo lectura). |
-| `AC 0x1D` | `VAR_X2_MOTOR_RESET`    | Escritura `0x01` = reset / recommissioning; limpia alarma de cambio de motor. |
+| `AC 0x1D` | `VAR_X2_MOTOR_RESET`    | Escritura `0x01` = reset / recommissioning; limpia alarma de cambio de motor y runtime X2. |
 | `AC 0x1E` | `VAR_X2_BLADE_AMP_PCT`  | Umbral aspa off: `I_max` &lt; `ref × pct%` (default **25**, rango 10–45). |
 | `AC 0x1F` | `VAR_X2_BLADE_MIN_SWING`| Máximo swing `(max−min)` en cA para confirmar curva plana (default **15**). |
 | `AC 0x20` | `VAR_X2_BLADE_ACK`      | Escritura `0x01` = limpiar alarma de aspa desprendida. |
+| `AC 0x21` | `VAR_X2_MOTOR_RUNTIME`  | Segundos de funcionamiento X2 acumulados desde último reset/cambio de motor (solo lectura remota, EEPROM). No suma ciclos con tolva vacía al final. |
+| `AC 0x22` | `VAR_X3_MOTOR_RUNTIME`  | Segundos de funcionamiento X3 acumulados (misma lógica). Horas ≈ valor / 3600. |
+
+#### Trama de confirmación de cambio de motor (`0xC0`)
+
+Payload Biofeeder dentro de API XBee `0x90` (índice base `txFrame[15]`):
+
+| Campo | Bytes | Descripción |
+|-------|-------|-------------|
+| cmd | 1 | `0xC0` |
+| frame id | 2 | MSB, LSB |
+| motor | 1 | `0` = aspersor (X2); `1` = dosificador (X3) |
+| acción | 1 | `0` = aceptar cambio; `1` = revertir |
+| reservado | 2 | `0x00 0x00` |
+
+Respuesta: `0x05` + frame id + resultado (`0x00` = OK, `0x01` = error).
+
+En auto-detección, `ref`, `slow` y runtime previos se respaldan en EEPROM interna. **Aceptar** descarta el respaldo y mantiene el estudio nuevo; **revertir** restaura los valores anteriores.
 
 #### Otras ACS usadas por el monitor
 
@@ -210,6 +238,8 @@ Unidades de corriente: **centiamperios (cA)** — p. ej. 140 mA = 14 cA.
 |-----------|--------------------|-----|
 | `AC 0x07` | `VAR_DISCONNECTED` | Umbral mínimo de corriente válida (cA). |
 | `AC 0x08` | `VAR_EMPTY_HOPPER` | Umbral tolva vacía (cA); auto-calibración al inicio de ciclo. |
+| `AC 0x09` | `VAR_MOTOR_CHANGE_PCT` | Umbral de salto cambio de motor por perfil (% sobre `ref`, X2 y X3, default 40). |
+| `AC 0x0C` | `VAR_MOTOR_REF_SAMPLES`| Muestras para calcular `ref` al comisionar (X2 y X3, default 20). |
 | `AC 0x05` | `VAR_PROT_X2`      | Protección X2 (× 100 cA). |
 | `AC 0x06` | `VAR_PROT_X3`      | Protección X3 (× 100 cA). |
 

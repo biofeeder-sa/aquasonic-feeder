@@ -10,6 +10,7 @@
 #include "acs/acs_sensor.h"
 #include "acs/motor_wear_monitor.h"
 #include "acs/x2_blade_monitor.h"
+#include "acs/motor_runtime.h"
 #include "actuators/actuators.h"
 #include "rtc/rtc.h"
 #include "dosage/dosage.h"

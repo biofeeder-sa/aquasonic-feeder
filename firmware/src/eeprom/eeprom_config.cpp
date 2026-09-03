@@ -1,4 +1,4 @@
-﻿#include <Arduino.h>
+#include <Arduino.h>
 #include <EEPROM.h>
 #include "core/vars.h"
 #include "variables/var_access.h"
@@ -111,6 +111,8 @@ void postInitConfig(void) {
   if (VAR_WIRE_BYTE(VAR_PROT_X2, 2) == 0xFF) VAR_WIRE_BYTE(VAR_PROT_X2, 2) = 10;
   if (VAR_WIRE_BYTE(VAR_PROT_X3, 2) == 0xFF) VAR_WIRE_BYTE(VAR_PROT_X3, 2) = 1;
   if (VAR_WIRE_BYTE(VAR_DISCONNECTED, 2) == 0xFF) VAR_WIRE_BYTE(VAR_DISCONNECTED, 2) = 14;
+  if (VAR_WIRE_BYTE(VAR_MOTOR_CHANGE_PCT, 2) == 0xFF) VAR_WIRE_BYTE(VAR_MOTOR_CHANGE_PCT, 2) = 40;
+  if (VAR_WIRE_BYTE(VAR_MOTOR_REF_SAMPLES, 2) == 0xFF) VAR_WIRE_BYTE(VAR_MOTOR_REF_SAMPLES, 2) = 20;
   if (VAR_WIRE_BYTE(VAR_X3_WEAR_PCT, 2) == 0xFF) VAR_WIRE_BYTE(VAR_X3_WEAR_PCT, 2) = 30;
   if (VAR_WIRE_BYTE(VAR_X3_WEAR_EMA_ALPHA, 2) == 0xFF) VAR_WIRE_BYTE(VAR_X3_WEAR_EMA_ALPHA, 2) = 2;
   if (VAR_WIRE_BYTE(VAR_X2_WEAR_PCT, 2) == 0xFF) VAR_WIRE_BYTE(VAR_X2_WEAR_PCT, 2) = 30;
@@ -173,4 +175,5 @@ void postInitConfig(void) {
   }
   motorWearInitAll();
   x2BladeInit();
+  motorRuntimeInit();
 }

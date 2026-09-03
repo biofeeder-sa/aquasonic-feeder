@@ -9,6 +9,7 @@
 #include "acs/acs_sensor.h"
 #include "acs/motor_wear_monitor.h"
 #include "acs/x2_blade_monitor.h"
+#include "acs/motor_runtime.h"
 
 void Dosage_FeedRate(void)
 {
@@ -134,6 +135,7 @@ void Dosage_FeedRate(void)
                           bitRead(VAR_WIRE_BYTE(VAR_SETTING_BYTES, 3), 4) == TRUE,
                           acs.corriente_maxima - acs.corriente_minima, acs.highCurrentX2,
                           acs.hadX2DisconnectedInCycle);
+        motorRuntimeOnCycleEnd(x2CycleMs, app.dosageRt.dosingTotalMs, emptyHopperAtEnd);
         acsResetWearCycleFlags();
       }
       app.dosageRt.dosingStartMs = 0;

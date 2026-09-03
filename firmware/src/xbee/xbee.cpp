@@ -296,6 +296,26 @@ static void xbeeHandleBiofeederPayload(void) {
     Serial.print(F("XBee app error: 0x"));
     Serial.println(xbee.stats.lastAppError, HEX);
   }
+  else if (xbee.txFrame[15] == CMD_MOTOR_CHANGE_CONFIRM) {
+    if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 4), 3) == 1) {
+      xbee.comm.lastActivityMs = millis();
+    }
+    bool ok = false;
+    if (xbee.rxIndex >= 22 &&
+        xbee.txFrame[20] == 0x00 &&
+        xbee.txFrame[21] == 0x00) {
+      ok = motorWearHandleChangeConfirm(xbee.txFrame[18], xbee.txFrame[19]);
+    }
+    xbee.writeResponse[0] = CMD_WRITE_RESPONSE;
+    xbee.writeResponse[1] = xbee.txFrame[16];
+    xbee.writeResponse[2] = xbee.txFrame[17];
+    xbee.writeResponse[3] = ok ? 0x00 : 0x01;
+    xbee.payloadSize = 4;
+    create_frame(xbee.txFrame, xbee.writeResponse, xbee.payloadSize, 0);
+    print_frame("Motor change confirm : <", xbee.txFrame, xbee.payloadSize, " >");
+    send_frame(xbee.txFrame, xbee.payloadSize);
+    app.comm.answerBroadcast = TRUE;
+  }
   else if (xbee.txFrame[15] == CMD_CALIBRATION) {
     app.dosageRt.calibGrams = (xbee.txFrame[18] << 8) + xbee.txFrame[19];
   }
