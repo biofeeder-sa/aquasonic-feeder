@@ -174,18 +174,3 @@ uint8_t calculatePercentX(void)
     result2 += 1;
   return (uint8_t) result2;
 }
-void forTimeAlam(void)
-{
-  uint32_t minutesNow     = 0;
-  uint32_t minutesConfig  = ( (VAR_WIRE_BYTE(VAR_TIME_ALARM, 2) * 0x100) + VAR_WIRE_BYTE(VAR_TIME_ALARM, 3) );
-  uint32_t ProductMinutes = minutesConfig * 60000;
-  minutesNow = millis();
-  if ( minutesNow >= (xbee.comm.lastActivityMs + ProductMinutes) )
-  {
-    if ( (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 4) , 3) == 1) && (bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 4) , 3) == 0) )
-    {
-      bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 4) , 3 , 1);
-    }         
-  }
-  return;
-}

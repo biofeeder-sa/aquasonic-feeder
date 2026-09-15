@@ -147,10 +147,8 @@ Los ciclos con **tolva vacía al final** (bit 6, byte índice 5) se descartan pa
 
 | Bit   | Descripción                                                                                |
 |-------|--------------------------------------------------------------------------------------------|
-| 0–2   | *Sin uso* (bits 0–1 referenciados en código comentado de balanza).                         |
-| **3** | **Timeout de comunicación:** sin actividad XBee durante el tiempo configurado en           |
-|       | `0x00 0x17` (`VAR_TIME_ALARM`, minutos). Se limpia al recibir ACK.                         |
-| 4–7   | *Sin uso*.                                                                                 |
+| 0–7   | *Sin uso* (el timeout de comunicación se eliminó; bits 0–1 aparecen solo en código         |
+|       | comentado de balanza).                                                                     |
 
 #### Byte lógico 0 (índice 5) — Protección y sensores de motor (ACS)
 

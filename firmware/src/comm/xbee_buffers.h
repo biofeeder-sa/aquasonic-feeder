@@ -17,7 +17,6 @@ typedef struct {
   uint32_t broadcastTimeA;
   uint32_t broadcastTimeB;
   uint8_t broadcastMultiplier;
-  uint32_t lastActivityMs;
   uint8_t alarmsSnapshot[4];
 } XbeeCommState;
 

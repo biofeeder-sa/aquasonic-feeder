@@ -149,16 +149,6 @@ void postInitConfig(void) {
     varSetDosingId(dosingId);
   }
   {
-    uint16_t timeAlarmEeprom = 0;
-    EEPROM.get(varEepromAddr(VAR_TIME_ALARM), timeAlarmEeprom);
-    if ((timeAlarmEeprom != 0x0000) && (timeAlarmEeprom != 0xFFFF)) {
-      uint16_t timeAlarmAddr = varEepromAddr(VAR_TIME_ALARM);
-      for (uint8_t i = 0; i <= 1; i++) {
-        VAR_WIRE_BYTE(VAR_TIME_ALARM, 2 + i) = EEPROM.read(timeAlarmAddr + i);
-      }
-    }
-  }
-  {
     uint32_t accGrams = 0;
     EEPROM.get(varEepromAddr(VAR_ACCUMULATED_GRAMS), accGrams);
     if (accGrams > 540000) {

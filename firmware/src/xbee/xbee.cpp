@@ -219,9 +219,6 @@ static void xbeeHandleBiofeederPayload(void) {
     unsigned char posLSB = 19;
     unsigned char posMSB = 20;
     unsigned char mult = 0;
-    if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 4), 3) == 1) {
-      xbee.comm.lastActivityMs = millis();
-    }
     xbee.writeResponse[0] = CMD_WRITE_RESPONSE;
     xbee.writeResponse[1] = xbee.txFrame[16];
     xbee.writeResponse[2] = xbee.txFrame[17];
@@ -247,9 +244,6 @@ static void xbeeHandleBiofeederPayload(void) {
     app.comm.answerBroadcast = TRUE;
   }
   else if (xbee.txFrame[15] == CMD_READ_REQUEST) {
-    if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 4), 3) == 1) {
-      xbee.comm.lastActivityMs = millis();
-    }
     int counter = 4;
     xbee.readRequest[0] = CMD_READ_RESPONSE;
     xbee.readRequest[1] = xbee.txFrame[16];
@@ -269,9 +263,6 @@ static void xbeeHandleBiofeederPayload(void) {
   }
   else if (xbee.txFrame[15] == CMD_ACK) {
     Serial.println(F("ACK recibido"));
-    if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 4), 3) == 1) {
-      xbee.comm.lastActivityMs = millis();
-    }
     acs.inactividadFlag = false;
     xbee.writeResponse[0] = CMD_WRITE_RESPONSE;
     xbee.writeResponse[1] = xbee.txFrame[16];
@@ -285,9 +276,6 @@ static void xbeeHandleBiofeederPayload(void) {
       }
       bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 3), 3, 0);
     }
-    if (bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 4), 3) == 1) {
-      bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 4), 3, 0);
-    }
     app.comm.deliveryAck = TRUE;
   }
   else if (xbee.txFrame[15] == CMD_ERROR) {
@@ -297,9 +285,6 @@ static void xbeeHandleBiofeederPayload(void) {
     Serial.println(xbee.stats.lastAppError, HEX);
   }
   else if (xbee.txFrame[15] == CMD_MOTOR_CHANGE_CONFIRM) {
-    if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 4), 3) == 1) {
-      xbee.comm.lastActivityMs = millis();
-    }
     bool ok = false;
     if (xbee.rxIndex >= 22 &&
         xbee.txFrame[20] == 0x00 &&
@@ -572,24 +557,6 @@ void create_data_Alarms(void)
   //   }
   //   xbee.alarmsVarCount++;
   // }
-  /*    SI LA ALARMA FUE POR TIEMPO CUMPLIDO   */
-  // if ( bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 4) , 3) == 1 )
-  // {
-  //   //BYTES DE SETEO
-  //   for (int i = 0; i < ((VAR_WIRE_LEN(VAR_SETTING_BYTES)) ); ++i)
-  //   {
-  //     xbee.alarms[cont] = VAR_WIRE_BYTE(VAR_SETTING_BYTES, i);
-  //     cont++;
-  //   }
-  //   xbee.alarmsVarCount++;
-  //   //TIEMPO DE ENVIO DE LA ALARMA DE CHEQUEO DE LA COMUNICACION
-  //   for (int i = 0; i < ((VAR_WIRE_LEN(VAR_TIME_ALARM)) ); ++i)
-  //   {
-  //     xbee.alarms[cont] = VAR_WIRE_BYTE(VAR_TIME_ALARM, i);
-  //     cont++;
-  //   }
-  //   xbee.alarmsVarCount++;
-  // }
   xbee.payloadSize = cont; // Asignacion de la cantidad de bytes de la "data"
   //CREAR AQUI LAS DEMAS POSIBLES ALARMAS//
   /*
@@ -614,12 +581,8 @@ void Send_Sequence_Alarms(void)
 {
     // Si se activo el bit de dosificacion  
   if((bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 3) , 3) == 1)  ||
-    // Si se cambio los estados de las alarmas
-    (xbee.comm.alarmsSnapshot[2] != VAR_WIRE_BYTE(VAR_ALARMS, 4))    ||
     // Si hay baja bateria
-    (bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 3) , 4) == true) ||
-    // Si se cumple el tiempo de espera desde el Ãºltimo mensaje recibido
-    (bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 4) , 3) == 1)
+    (bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 3) , 4) == true)
     )
   {
     xbee.comm.ackTimeA = millis();

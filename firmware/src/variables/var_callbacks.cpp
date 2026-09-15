@@ -232,7 +232,6 @@ const VarWriteHandlerFn kVarWriteHandlers[ROW] = {
   /* VAR_ID_DOSAGE          */ NULL,
   /* VAR_ACCUMULATED_GRAMS  */ NULL,
   /* VAR_DOSED_GRAMS        */ varWriteCopyOnly,
-  /* VAR_TIME_ALARM         */ varWriteCopySave,
   /* VAR_PERCENT_MOTOR      */ varWritePercentMotor,
   /* VAR_N_VUELTAS          */ NULL,
   /* VAR_T_VUELTAS          */ NULL,
