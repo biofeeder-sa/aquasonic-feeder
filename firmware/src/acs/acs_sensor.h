@@ -8,6 +8,12 @@
 #define ANALOGX1 A3
 #define TIEMPO_ESPERA_INACTIVIDAD 10000
 
+/* Motores invertidos: byte lógico 0 (índice 5), bit 7. Unidades: centiamperios. */
+#define MOTOR_SWAP_ALARM_BYTE      5
+#define MOTOR_SWAP_ALARM_BIT       7
+#define MOTOR_SWAP_SPRAYER_MIN_CA  400u  /* aspersor ≥ 4.0 A */
+#define MOTOR_SWAP_DOSER_MAX_CA    200u  /* dosificador ≤ 2.0 A */
+
 typedef struct {
   bool attempX3;
   bool attempX2;
@@ -54,6 +60,7 @@ void sendAlarm(unsigned char pin);
 void sensorAmp(unsigned char output);
 unsigned int readACS(unsigned char pin);
 void bitDisabledACS(unsigned char positionBit);
+bool acsEvaluateMotorSwap(uint16_t imaxX2, uint16_t imaxX3);
 unsigned int convertADCtoAMP(unsigned char pin);
 void currentPeakCounter();
 float captureCurrent();

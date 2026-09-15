@@ -41,6 +41,7 @@ bool varWriteAlarmMask(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& c
   saveInEeprom(row);
   motorWearApplyAlarmMask();
   x2BladeApplyAlarmMask();
+  bitDisabledACS(7);
   countByte = transferVar[row][VAR_SIZE];
   return true;
 }

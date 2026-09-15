@@ -207,6 +207,7 @@ void sendAlarm(unsigned char pin) {
   bitDisabledACS(4);
   bitDisabledACS(5);
   bitDisabledACS(6);
+  bitDisabledACS(7);
 }
 
 void sensorAmp(unsigned char output) {
@@ -235,6 +236,37 @@ void bitDisabledACS(unsigned char positionBit) {
   if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 5), positionBit) == 0) {
     bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), positionBit, 0);
   }
+}
+
+bool acsEvaluateMotorSwap(uint16_t imaxX2, uint16_t imaxX3) {
+  if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, MOTOR_SWAP_ALARM_BYTE), MOTOR_SWAP_ALARM_BIT) == 0) {
+    bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, MOTOR_SWAP_ALARM_BYTE), MOTOR_SWAP_ALARM_BIT, 0);
+    return false;
+  }
+
+  const uint16_t disconnected = VAR_WIRE_BYTE(VAR_DISCONNECTED, 2);
+  const bool x2LooksLikeDoser =
+      (imaxX2 > disconnected) && (imaxX2 <= MOTOR_SWAP_DOSER_MAX_CA);
+  const bool x3LooksLikeSprayer = (imaxX3 >= MOTOR_SWAP_SPRAYER_MIN_CA);
+  const bool swapped = x2LooksLikeDoser && x3LooksLikeSprayer;
+
+  if (swapped) {
+    bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, MOTOR_SWAP_ALARM_BYTE), MOTOR_SWAP_ALARM_BIT, 1);
+    bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 6, 0);
+    Serial.print(F("Motores invertidos X2="));
+    Serial.print(imaxX2);
+    Serial.print(F("cA X3="));
+    Serial.println(imaxX3);
+    return true;
+  }
+
+  const bool x2LooksLikeSprayer = (imaxX2 >= MOTOR_SWAP_SPRAYER_MIN_CA);
+  const bool x3LooksLikeDoser =
+      (imaxX3 > disconnected) && (imaxX3 <= MOTOR_SWAP_DOSER_MAX_CA);
+  if (x2LooksLikeSprayer && x3LooksLikeDoser) {
+    bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, MOTOR_SWAP_ALARM_BYTE), MOTOR_SWAP_ALARM_BIT, 0);
+  }
+  return false;
 }
 
 float captureCurrent() {

@@ -141,6 +141,8 @@ void loop()
     Serial.print(", ");
     Serial.print(x2BladeAlarmActive() ? 1 : 0);
     Serial.print(", ");
+    Serial.print(bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 5), 7));
+    Serial.print(", ");
     Serial.print(motorRuntimeX2Seconds());
     Serial.print(", ");
     Serial.print(motorRuntimeX3Seconds());

@@ -42,7 +42,14 @@ void Dosage_FeedRate(void)
       Serial.println(grVuelta);
       Serial.print(F("Numero de vueltas: "));
       Serial.println(app.dosageRt.targetRevolutions);
-      VAR_WIRE_BYTE(VAR_ALARMS, 5) = 0;
+      {
+        const bool swapLatched =
+            bitRead(VAR_WIRE_BYTE(VAR_ALARMS, MOTOR_SWAP_ALARM_BYTE), MOTOR_SWAP_ALARM_BIT);
+        VAR_WIRE_BYTE(VAR_ALARMS, 5) = 0;
+        if (swapLatched) {
+          bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, MOTOR_SWAP_ALARM_BYTE), MOTOR_SWAP_ALARM_BIT, 1);
+        }
+      }
       digitalWrite(X1, ON);
       // Serial.println(F("Encender X1"));
       app.dosageRt.motorX1StartMs = millis();
@@ -125,17 +132,20 @@ void Dosage_FeedRate(void)
         }
         const bool emptyHopperAtEnd =
             (bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 5), 6) != 0);
+        const bool motorsSwapped =
+            acsEvaluateMotorSwap(acs.previousAmpMaxX2, acs.previousAmpMaxX3);
+        const bool skipMotorStudy = emptyHopperAtEnd || motorsSwapped;
         x2WearOnCycleEnd(acs.previousAmpMaxX2, x2CycleMs, acs.highCurrentX2,
                          acs.hadX2DisconnectedInCycle, acs.hadX3DisconnectedInCycle,
-                         emptyHopperAtEnd);
+                         skipMotorStudy);
         x3WearOnCycleEnd(acs.previousAmpMaxX3, app.dosageRt.dosingTotalMs, acs.highCurrentX3,
                          acs.hadX2DisconnectedInCycle, acs.hadX3DisconnectedInCycle,
-                         emptyHopperAtEnd);
+                         skipMotorStudy);
         x2BladeOnCycleEnd(acs.previousAmpMaxX2, (uint8_t)acs.nPicos, acs.inactividadFlag,
                           bitRead(VAR_WIRE_BYTE(VAR_SETTING_BYTES, 3), 4) == TRUE,
                           acs.corriente_maxima - acs.corriente_minima, acs.highCurrentX2,
-                          acs.hadX2DisconnectedInCycle);
-        motorRuntimeOnCycleEnd(x2CycleMs, app.dosageRt.dosingTotalMs, emptyHopperAtEnd);
+                          acs.hadX2DisconnectedInCycle || motorsSwapped);
+        motorRuntimeOnCycleEnd(x2CycleMs, app.dosageRt.dosingTotalMs, skipMotorStudy);
         acsResetWearCycleFlags();
       }
       app.dosageRt.dosingStartMs = 0;
@@ -214,7 +224,8 @@ void Dosage_FeedRate(void)
     if(digitalRead(X2) == ON && (millis()-app.dosageRt.sprayerStartMs >= 500)) sensorAmp(X2);
     if(digitalRead(X3) == ON && (millis()-app.dosageRt.dosingStartMs >= 500)) sensorAmp(X3);
   }
-  if(acs.inactividadFlag == true ){
+  if(acs.inactividadFlag == true &&
+     bitRead(VAR_WIRE_BYTE(VAR_ALARMS, MOTOR_SWAP_ALARM_BYTE), MOTOR_SWAP_ALARM_BIT) == 0){
     bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5) , 6, 1);
   }
 }

@@ -127,7 +127,7 @@ Los cuatro bytes de valor se acceden como `VAR_WIRE_BYTE(VAR_ALARMS, 2)` … `5`
 
 Las alarmas de **desgaste** reflejan el estado latcheado del monitor (`slow` vs referencia). Las de **cambio de motor** se activan en auto-detección pendiente de confirmación (no en reset remoto voluntario). Ver trama **`0xC0`** más abajo.
 
-Los ciclos con **tolva vacía al final** (bit 6, byte índice 5) se descartan para desgaste, cambio de motor, comisionamiento y runtime; además reinician las rachas de detección de perfil/caída.
+Los ciclos con **tolva vacía al final** (bit 6) o **motores invertidos** (bit 7, byte índice 5) se descartan para desgaste, cambio de motor, comisionamiento y runtime.
 
 #### Byte lógico 2 (índice 3) — Ciclo de alimentación y energía
 
@@ -162,7 +162,12 @@ Los ciclos con **tolva vacía al final** (bit 6, byte índice 5) se descartan pa
 | **5** | X3    | **Protección por sobrecorriente:** corriente ≥ `AC 0x06`; apaga X3.                |
 | **6** | X2    | **Tolva vacía / sin balanceado:** corriente de X2 en rango de hopper vacío         |
 |       |       | (`AC 0x08`) al **final** de la dosificación.                                       |
-| **7** | —     | *Sin uso*.                                                                         |
+| **7** | X2/X3 | **Motores invertidos:** el dosificador está en el conector del aspersor y          |
+|       |       | viceversa. Se valida al **final del ciclo** con los picos de **ambas** salidas:    |
+|       |       | X2 en rango de dosificador (`disconnected < Imax_X2 ≤ 2.0 A`) **y** X3 en rango    |
+|       |       | de aspersor (`Imax_X3 ≥ 4.0 A`). No se confunde con sobrecorriente: un consumo     |
+|       |       | alto en una sola salida no basta. Se limpia cuando un ciclo muestra el cruce       |
+|       |       | correcto (X2 ≥ 4.0 A y X3 ≤ 2.0 A, con corriente válida).                          |
 
 ---
 
@@ -175,11 +180,11 @@ Misma disposición de bits que `VAR_ALARMS`. Cada bit habilita (`1`) o suprime (
 | 0 (índice 2) | `0x1F` (bits 0–4) | Habilita desgaste X2/X3, cambio motor X2/X3 y aspa desprendida X2. |
 | 1 (índice 3) | `0x28` (bits 3, 5) | Habilita alarma de ciclo completado (bit 3). Bit 5 sin función asociada en firmware actual. |
 | 2 (índice 4) | `0x00` | Sin alarmas habilitadas en este byte. |
-| 3 (índice 5) | `0x76` (bits 1,2,4,5,6) | Habilita desconectado X2/X3, protección X2/X3 y tolva vacía. |
+| 3 (índice 5) | `0xF6` (bits 1,2,4,5,6,7) | Habilita desconectado X2/X3, protección X2/X3, tolva vacía y motores invertidos. |
 
 Si un bit de máscara está en `0`, el firmware fuerza a `0` el bit equivalente en `VAR_ALARMS` (`bitDisabledACS` / `motorWearApplyAlarmMask`).
 
-**Default de fábrica:** `1F 28 00 76`.
+**Default de fábrica:** `1F 28 00 F6`.
 
 ---
 

@@ -106,6 +106,10 @@ void postInitConfig(void) {
   if (Events_ArduinoUNO) {
     bitWrite(VAR_WIRE_BYTE(VAR_ALARM_MASK, 3), 3, 1);
   }
+  if (VAR_WIRE_BYTE(VAR_ALARM_MASK, 5) == 0x76) {
+    VAR_WIRE_BYTE(VAR_ALARM_MASK, 5) = 0xF6;
+    saveInEeprom(VAR_ALARM_MASK);
+  }
   if (VAR_WIRE_BYTE(VAR_ACS_TYPE, 2) == 0xFF) VAR_WIRE_BYTE(VAR_ACS_TYPE, 2) = 0;
   if (VAR_WIRE_BYTE(VAR_PROT_X1, 2) == 0xFF) VAR_WIRE_BYTE(VAR_PROT_X1, 2) = 1;
   if (VAR_WIRE_BYTE(VAR_PROT_X2, 2) == 0xFF) VAR_WIRE_BYTE(VAR_PROT_X2, 2) = 10;
