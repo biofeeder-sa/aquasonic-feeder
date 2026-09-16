@@ -219,11 +219,12 @@ static void xbeeHandleBiofeederPayload(void) {
     unsigned char posLSB = 19;
     unsigned char posMSB = 20;
     unsigned char mult = 0;
-    xbee.writeResponse[0] = CMD_WRITE_RESPONSE;
-    xbee.writeResponse[1] = xbee.txFrame[16];
-    xbee.writeResponse[2] = xbee.txFrame[17];
-    xbee.writeResponse[3] = xbee.txFrame[18];
-    for (int i = 0; i < xbee.txFrame[18]; ++i) {
+    const uint8_t msgIdMsb = xbee.txFrame[16];
+    const uint8_t msgIdLsb = xbee.txFrame[17];
+    const uint8_t varCount = xbee.txFrame[18];
+    int echoedRows[32];
+    uint8_t nEchoed = 0;
+    for (int i = 0; i < varCount; ++i) {
       if (i != 0) {
         mult = 1;
       }
@@ -234,11 +235,24 @@ static void xbeeHandleBiofeederPayload(void) {
         uint8_t written = 0;
         if (applyVarWriteFromXbee(row, posLSB, xbee.txFrame, written)) {
           countByte = written;
+        } else {
+          countByte = transferVar[row][VAR_SIZE];
+        }
+        if (nEchoed < (sizeof(echoedRows) / sizeof(echoedRows[0]))) {
+          echoedRows[nEchoed++] = row;
         }
       }
     }
-    xbee.payloadSize = sizeof(xbee.writeResponse) / sizeof(xbee.writeResponse[0]);
-    create_frame(xbee.txFrame, xbee.writeResponse, xbee.payloadSize, 0);
+    int counter = 4;
+    xbee.readRequest[0] = CMD_READ_RESPONSE;
+    xbee.readRequest[1] = msgIdMsb;
+    xbee.readRequest[2] = msgIdLsb;
+    xbee.readRequest[3] = nEchoed;
+    for (uint8_t i = 0; i < nEchoed; ++i) {
+      appendVarWire(echoedRows[i], xbee.readRequest, counter);
+    }
+    xbee.payloadSize = counter;
+    create_frame(xbee.txFrame, xbee.readRequest, xbee.payloadSize, 0);
     print_frame("Write var : <", xbee.txFrame, xbee.payloadSize, " >");
     send_frame(xbee.txFrame, xbee.payloadSize);
     app.comm.answerBroadcast = TRUE;
