@@ -12,10 +12,14 @@
 
 #define X2_BLADE_CMD_ACK         0x01u
 
+/* Aspersor con aspa ≥ 4 A; sin aspa ≈ 0.5–1.0 A. Umbral fijo, en centiamperios. */
+#define X2_BLADE_MAX_CA          200u
+#define X2_BLADE_CONSECUTIVE     3u
+
 void x2BladeInit(void);
 void x2BladeApplyAlarmMask(void);
-void x2BladeOnCycleEnd(uint16_t cycleImax, uint8_t nPicos, bool inactivity, bool revolutionMode,
-                       float currentSwingA, bool hadProtection, bool hadX2Disconnected);
+void x2BladeResetStreak(void);
+void x2BladeOnSample(uint16_t ampX2Ca, uint16_t ampX3Ca, bool x3Settled);
 bool x2BladeHandleAckWrite(uint8_t command);
 bool x2BladeAlarmActive(void);
 

@@ -23,7 +23,9 @@ void Dosage_FeedRate(void)
       ||
       ( (Table_ArduinoUNO) && (rtc.breakCycle == 0) && (rtc.feedMinuteLatch != rtc.minute) && (cycleGrams != 0 && varCycleTime() != 0) ) )
       &&
-      (  app.dosage.dosingActive == FALSE ) )
+      (  app.dosage.dosingActive == FALSE )
+      &&
+      ( !x2BladeAlarmActive() ) )
     {
       dosageTimeMs = (uint32_t)(grVuelta * cycleGrams);
       activeCycleGrams = cycleGrams;
@@ -59,6 +61,7 @@ void Dosage_FeedRate(void)
       acs.previousAmpMaxX3 = 0;
       acs.previousAmpMinX3 = 10000;
       acsResetWearCycleFlags();
+      x2BladeResetStreak();
     }
     if(cycleGrams != 0
       &&
@@ -110,6 +113,8 @@ void Dosage_FeedRate(void)
         (acs.highCurrentX2 == TRUE)
         ||
         (acs.highCurrentX3 == TRUE)
+        ||
+        (x2BladeAlarmActive() && app.dosage.dosingActive == TRUE)
       )
     {
       digitalWrite(X3 , OFF);
@@ -141,10 +146,6 @@ void Dosage_FeedRate(void)
         x3WearOnCycleEnd(acs.previousAmpMaxX3, app.dosageRt.dosingTotalMs, acs.highCurrentX3,
                          acs.hadX2DisconnectedInCycle, acs.hadX3DisconnectedInCycle,
                          skipMotorStudy);
-        x2BladeOnCycleEnd(acs.previousAmpMaxX2, (uint8_t)acs.nPicos, acs.inactividadFlag,
-                          bitRead(VAR_WIRE_BYTE(VAR_SETTING_BYTES, 3), 4) == TRUE,
-                          acs.corriente_maxima - acs.corriente_minima, acs.highCurrentX2,
-                          acs.hadX2DisconnectedInCycle || motorsSwapped);
         motorRuntimeOnCycleEnd(x2CycleMs, app.dosageRt.dosingTotalMs, skipMotorStudy);
         acsResetWearCycleFlags();
       }
@@ -223,6 +224,15 @@ void Dosage_FeedRate(void)
     if(digitalRead(X1) == ON) sensorAmp(X1);
     if(digitalRead(X2) == ON && (millis()-app.dosageRt.sprayerStartMs >= 500)) sensorAmp(X2);
     if(digitalRead(X3) == ON && (millis()-app.dosageRt.dosingStartMs >= 500)) sensorAmp(X3);
+    if (app.dosage.dosingActive &&
+        digitalRead(X2) == ON &&
+        (millis() - app.dosageRt.sprayerStartMs >= 500)) {
+      const uint16_t ampX2 =
+          ((uint16_t)VAR_WIRE_BYTE(VAR_AMP_X2, 2) << 8) | VAR_WIRE_BYTE(VAR_AMP_X2, 3);
+      const bool x3Settled =
+          (digitalRead(X3) == ON) && (millis() - app.dosageRt.dosingStartMs >= 500);
+      x2BladeOnSample(ampX2, acs.ampX3, x3Settled);
+    }
   }
   if(acs.inactividadFlag == true &&
      bitRead(VAR_WIRE_BYTE(VAR_ALARMS, MOTOR_SWAP_ALARM_BYTE), MOTOR_SWAP_ALARM_BIT) == 0){
