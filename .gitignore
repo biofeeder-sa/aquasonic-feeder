@@ -1,5 +1,8 @@
 # Build / compile output
 output/
+
+# Local scripts
+scripts/
 *.elf
 *.eep
 *.bin
