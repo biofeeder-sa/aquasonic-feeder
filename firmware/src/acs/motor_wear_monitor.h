@@ -8,15 +8,15 @@
 #define MOTOR_WEAR_DEBUG 1
 #endif
 
-/* VAR_ALARMS valor byte índice 2: desgaste (0-1) y cambio de motor (2-3) */
+/* VAR_WIRE_BYTE índice 2 = primer byte de valor (el 0 y el 1 son el ID). */
 #define X2_WEAR_ALARM_BYTE       2
 #define X2_WEAR_ALARM_BIT        0
-#define X2_WEAR_MASK_BYTE        0
+#define X2_WEAR_MASK_BYTE        2
 #define X2_WEAR_MASK_BIT         0
 
 #define X3_WEAR_ALARM_BYTE       2
 #define X3_WEAR_ALARM_BIT        1
-#define X3_WEAR_MASK_BYTE        0
+#define X3_WEAR_MASK_BYTE        2
 #define X3_WEAR_MASK_BIT         1
 
 #define X2_MOTOR_CHANGE_ALARM_BIT  2

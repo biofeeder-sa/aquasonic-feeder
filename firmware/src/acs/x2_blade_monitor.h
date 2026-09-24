@@ -4,10 +4,10 @@
 #include <Arduino.h>
 #include <stdint.h>
 
-/* VAR_ALARMS valor byte índice 2, bit 4 */
+/* VAR_WIRE_BYTE índice 2 = primer byte de valor (el 0 y el 1 son el ID). */
 #define X2_BLADE_ALARM_BYTE      2
 #define X2_BLADE_ALARM_BIT       4
-#define X2_BLADE_MASK_BYTE       0
+#define X2_BLADE_MASK_BYTE       2
 #define X2_BLADE_MASK_BIT        4
 
 #define X2_BLADE_CMD_ACK         0x01u

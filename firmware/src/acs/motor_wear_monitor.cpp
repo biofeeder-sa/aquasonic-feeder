@@ -822,23 +822,11 @@ static void syncAlarm(const MotorWearConfig* cfg, MotorWearState* st, bool hadPr
 }
 
 void motorWearInitAll(void) {
-  bool maskChanged = false;
-  if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 2), 1) != 0 ||
-      bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 2), 2) != 0) {
-    bitWrite(VAR_WIRE_BYTE(VAR_ALARM_MASK, 0), 0, 1);
-    bitWrite(VAR_WIRE_BYTE(VAR_ALARM_MASK, 0), 1, 1);
-    bitWrite(VAR_WIRE_BYTE(VAR_ALARM_MASK, 2), 1, 0);
-    bitWrite(VAR_WIRE_BYTE(VAR_ALARM_MASK, 2), 2, 0);
-    maskChanged = true;
-  }
   /* Migrar desgaste X3 legado (bit 2) al bit 1 */
   if (bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 2), 2) != 0 &&
       bitRead(VAR_WIRE_BYTE(VAR_ALARMS, 2), 1) == 0) {
     bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 2), 1, 1);
     bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 2), 2, 0);
-  }
-  if (maskChanged) {
-    saveInEeprom(VAR_ALARM_MASK);
   }
   initOne(&x2Cfg, &x2State);
   initOne(&x3Cfg, &x3State);
