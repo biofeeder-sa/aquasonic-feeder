@@ -119,10 +119,11 @@ Los cuatro bytes de valor se acceden como `VAR_WIRE_BYTE(VAR_ALARMS, 2)` … `5`
 | **2** | X2                | **Cambio de motor detectado:** auto-reset pendiente de confirmación |
 |       |                   | (`0xC0`). Se limpia al aceptar/revertir o con `AC 0x1D = 0x01`.   |
 | **3** | X3                | **Cambio de motor detectado.** Se limpia con `0xC0` o `AC 0x18`.  |
-| **4** | X2                | **Aspa desprendida:** sin vueltas + `I_max` ≪ referencia          |
-|       |                   | X2 (≈ &lt; 25 % de `ref`). Se distingue de tolva vacía            |   
-|       |                   | (~60 % de `ref`). Latch tras 2 ciclos; clear con 2 ciclos sanos   |
-|       |                   | o `AC 0x20 = 0x01`.                                               |
+| **4** | X2                | **Aspa desprendida:** durante la dosificación, con X3 estabilizado, |
+|       |                   | 3 muestras seguidas de X2 por encima de desconectado y por debajo  |
+|       |                   | de 2 A, y X3 fuera del rango de aspersor. Si la máscara está       |
+|       |                   | activa, corta esa dosificación. Se apaga sola cuando una muestra   |
+|       |                   | de X2 es de 2 A o más.                                             |
 | 5–7   |         —         | *Sin uso*.                                                        |
 
 Las alarmas de **desgaste** reflejan el estado latcheado del monitor (`slow` vs referencia). Las de **cambio de motor** se activan en auto-detección pendiente de confirmación (no en reset remoto voluntario). Ver trama **`0xC0`** más abajo.
@@ -213,9 +214,8 @@ Unidades de corriente: **centiamperios (cA)** — p. ej. 140 mA = 14 cA.
 | `AC 0x1B` | `VAR_X2_BASELINE_REF`   | Referencia (solo lectura). |
 | `AC 0x1C` | `VAR_X2_BASELINE_SLOW`  | Baseline lenta (solo lectura). |
 | `AC 0x1D` | `VAR_X2_MOTOR_RESET`    | Escritura `0x01` = reset / recommissioning; limpia alarma de cambio de motor y runtime X2. |
-| `AC 0x1E` | `VAR_X2_BLADE_AMP_PCT`  | Umbral aspa off: `I_max` &lt; `ref × pct%` (default **25**, rango 10–45). |
-| `AC 0x1F` | `VAR_X2_BLADE_MIN_SWING`| Máximo swing `(max−min)` en cA para confirmar curva plana (default **15**). |
-| `AC 0x20` | `VAR_X2_BLADE_ACK`      | Escritura `0x01` = limpiar alarma de aspa desprendida. |
+| `AC 0x1E` | `VAR_X2_BLADE_AMP_PCT`  | Reservada. La detección de aspa ya no usa este porcentaje. |
+| `AC 0x1F` | `VAR_X2_BLADE_MIN_SWING`| Reservada. La detección de aspa ya no usa el swing. |
 | `AC 0x21` | `VAR_X2_MOTOR_RUNTIME`  | Segundos de funcionamiento X2 acumulados desde último reset/cambio de motor (solo lectura remota, EEPROM). No suma ciclos con tolva vacía al final. |
 | `AC 0x22` | `VAR_X3_MOTOR_RUNTIME`  | Segundos de funcionamiento X3 acumulados (misma lógica). Horas ≈ valor / 3600. |
 

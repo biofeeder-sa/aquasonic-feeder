@@ -77,10 +77,9 @@
 #define VAR_X2_MOTOR_RESET     52
 #define VAR_X2_BLADE_AMP_PCT   53
 #define VAR_X2_BLADE_MIN_SWING 54
-#define VAR_X2_BLADE_ACK       55
-#define VAR_X2_MOTOR_RUNTIME   56
-#define VAR_X3_MOTOR_RUNTIME   57
-#define VAR_RESET_EEPROM       58
+#define VAR_X2_MOTOR_RUNTIME   55
+#define VAR_X3_MOTOR_RUNTIME   56
+#define VAR_RESET_EEPROM       57
 
 /* Columnas (igual que hub) */
 #define VAR_ID              0
@@ -92,7 +91,7 @@
 #define VAR_LOG_TIME        8
 #define VAR_VALUE           9
 
-#define ROW 59
+#define ROW 58
 #define COL 45   /* 9 meta + hasta 36 bytes VALUE por fila */
 
 extern uint8_t transferVar[ROW][COL];

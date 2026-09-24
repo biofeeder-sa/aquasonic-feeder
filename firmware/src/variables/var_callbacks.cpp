@@ -115,13 +115,6 @@ bool varWriteCycleGrams(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& 
   }
   return true;
 }
-bool varWriteX2BladeAck(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
-  copyVarWireFromFrame(row, posLSB, frame);
-  x2BladeHandleAckWrite(VAR_WIRE_BYTE(row, 2));
-  VAR_WIRE_BYTE(row, 2) = 0;
-  countByte = transferVar[row][VAR_SIZE];
-  return true;
-}
 bool varWriteX2BladeAmpPct(int row, uint8_t posLSB, const uint8_t* frame, uint8_t& countByte) {
   countByte = transferVar[row][VAR_SIZE];
   const uint8_t pct = frame[posLSB + 2];
@@ -264,7 +257,6 @@ const VarWriteHandlerFn kVarWriteHandlers[ROW] = {
   /* VAR_X2_MOTOR_RESET     */ varWriteX2MotorReset,
   /* VAR_X2_BLADE_AMP_PCT   */ varWriteX2BladeAmpPct,
   /* VAR_X2_BLADE_MIN_SWING */ varWriteX2BladeMinSwing,
-  /* VAR_X2_BLADE_ACK       */ varWriteX2BladeAck,
   /* VAR_X2_MOTOR_RUNTIME   */ NULL,
   /* VAR_X3_MOTOR_RUNTIME   */ NULL,
   /* VAR_RESET_EEPROM       */ varWriteCopySave,

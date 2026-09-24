@@ -23,9 +23,7 @@ void Dosage_FeedRate(void)
       ||
       ( (Table_ArduinoUNO) && (rtc.breakCycle == 0) && (rtc.feedMinuteLatch != rtc.minute) && (cycleGrams != 0 && varCycleTime() != 0) ) )
       &&
-      (  app.dosage.dosingActive == FALSE )
-      &&
-      ( !x2BladeAlarmActive() ) )
+      (  app.dosage.dosingActive == FALSE ) )
     {
       dosageTimeMs = (uint32_t)(grVuelta * cycleGrams);
       activeCycleGrams = cycleGrams;

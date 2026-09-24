@@ -14,6 +14,10 @@ static void setBladeAlarmBit(bool active) {
   bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, X2_BLADE_ALARM_BYTE), X2_BLADE_ALARM_BIT, active ? 1 : 0);
 }
 
+static bool bladeMaskEnabled(void) {
+  return bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, X2_BLADE_MASK_BYTE), X2_BLADE_MASK_BIT) != 0;
+}
+
 static void clearBladeAlarmState(void) {
   suspectStreak = 0;
   bladeLatched = false;
@@ -38,15 +42,16 @@ void x2BladeApplyAlarmMask(void) {
 
 void x2BladeResetStreak(void) {
   suspectStreak = 0;
+  bladeLatched = false;
 }
 
 void x2BladeOnSample(uint16_t ampX2Ca, uint16_t ampX3Ca, bool x3Settled) {
-  if (bladeLatched || !x3Settled) {
+  if (!x3Settled) {
     return;
   }
 
   const uint16_t disconnected = VAR_WIRE_BYTE(VAR_DISCONNECTED, 2);
-  if (ampX2Ca <= disconnected || ampX2Ca >= X2_BLADE_MAX_CA) {
+  if (ampX2Ca <= disconnected) {
     suspectStreak = 0;
     return;
   }
@@ -54,6 +59,21 @@ void x2BladeOnSample(uint16_t ampX2Ca, uint16_t ampX3Ca, bool x3Settled) {
   /* Dosificador en X2 y aspersor en X3: motores invertidos, no aspa suelta. */
   if (ampX3Ca >= MOTOR_SWAP_SPRAYER_MIN_CA) {
     suspectStreak = 0;
+    return;
+  }
+
+  if (ampX2Ca >= X2_BLADE_MAX_CA) {
+    clearBladeAlarmState();
+    return;
+  }
+
+  if (!bladeMaskEnabled()) {
+    suspectStreak = 0;
+    bladeLatched = false;
+    return;
+  }
+
+  if (bladeLatched) {
     return;
   }
 
@@ -74,14 +94,6 @@ void x2BladeOnSample(uint16_t ampX2Ca, uint16_t ampX3Ca, bool x3Settled) {
 #endif
 }
 
-bool x2BladeHandleAckWrite(uint8_t command) {
-  if (command == X2_BLADE_CMD_ACK) {
-    clearBladeAlarmState();
-    return true;
-  }
-  return false;
-}
-
 bool x2BladeAlarmActive(void) {
-  return bladeLatched;
+  return bladeMaskEnabled() && bladeLatched;
 }
