@@ -127,6 +127,16 @@ void postInitConfig(void) {
     VAR_WIRE_BYTE(VAR_EMPTY_HOPPER, 2) = 0x01;
     VAR_WIRE_BYTE(VAR_EMPTY_HOPPER, 3) = 0x36;
   }
+  {
+    const uint16_t lowBattAddr = varEepromAddr(VAR_LOW_BATTERY);
+    const uint16_t legacyLowBattAddr = 0xE5u;
+    if (EEPROM.read(lowBattAddr) == 0xFF && EEPROM.read(lowBattAddr + 1) == 0xFF &&
+        (EEPROM.read(legacyLowBattAddr) != 0xFF || EEPROM.read(legacyLowBattAddr + 1) != 0xFF)) {
+      VAR_WIRE_BYTE(VAR_LOW_BATTERY, 2) = EEPROM.read(legacyLowBattAddr);
+      VAR_WIRE_BYTE(VAR_LOW_BATTERY, 3) = EEPROM.read(legacyLowBattAddr + 1);
+      saveInEeprom(VAR_LOW_BATTERY);
+    }
+  }
   if ((VAR_WIRE_BYTE(VAR_LOW_BATTERY, 2) == 0xFF) && (VAR_WIRE_BYTE(VAR_LOW_BATTERY, 3) == 0xFF)) {
     VAR_WIRE_BYTE(VAR_LOW_BATTERY, 2) = 0x2C;
     VAR_WIRE_BYTE(VAR_LOW_BATTERY, 3) = 0xEC;
