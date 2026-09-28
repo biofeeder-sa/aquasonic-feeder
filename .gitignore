@@ -1,8 +1,11 @@
 # Build / compile output
 output/
 
-# Local scripts
+documentacion/
+
+# Local scripts / herramientas de desarrollo (no versionar)
 scripts/
+firmware/tools/
 *.elf
 *.eep
 *.bin
