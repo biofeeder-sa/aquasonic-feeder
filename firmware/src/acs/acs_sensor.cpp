@@ -60,6 +60,46 @@ unsigned int convertADCtoAMP(unsigned char pin) {
   return res;
 }
 
+static bool enforceOvercurrent(unsigned char pin, unsigned char out, unsigned int amp,
+                               unsigned int ampMax, bool attemp) {
+  if ((amp >= ampMax) && (attemp == 0)) {
+    if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 5), 3) == 1) {
+      if (pin == ANALOGX1) {
+        bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 3, 1);
+        return true;
+      }
+    }
+    if (pin == ANALOGX2) {
+      bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 4, 1);
+      acs.highCurrentX2 = true;
+      Serial.print(F("Proteccion de Consumo en X2: "));
+      Serial.println(amp);
+      digitalWrite(out, OFF);
+      return true;
+    }
+    if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 5), 5) == 1) {
+      if (pin == ANALOGX3) {
+        bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 5, 1);
+        acs.highCurrentX3 = true;
+        Serial.println(F("Proteccion de Consumo en X3"));
+        digitalWrite(out, OFF);
+        return true;
+      }
+    }
+    return false;
+  }
+  if (pin == ANALOGX1) {
+    bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 3, 0);
+  }
+  if (pin == ANALOGX2) {
+    bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 4, 0);
+  }
+  if (pin == ANALOGX3) {
+    bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 5, 0);
+  }
+  return false;
+}
+
 void sendAlarm(unsigned char pin) {
   bool attemp = 0;
   unsigned int amp = 0;
@@ -116,38 +156,7 @@ void sendAlarm(unsigned char pin) {
     VAR_WIRE_BYTE(VAR_AMP_X1, 2) = highByte(amp);
     VAR_WIRE_BYTE(VAR_AMP_X1, 3) = lowByte(amp);
   }
-  if ((amp >= ampMax) && (attemp == 0)) {
-    if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 5), 3) == 1) {
-      if (pin == ANALOGX1) {
-        bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 3, 1);
-      }
-    }
-    if (pin == ANALOGX2) {
-      bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 4, 1);
-      acs.highCurrentX2 = true;
-      Serial.print(F("Proteccion de Consumo en X2: "));
-      Serial.println(amp);
-      digitalWrite(out, OFF);
-    }
-    if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 5), 5) == 1) {
-      if (pin == ANALOGX3) {
-        bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 5, 1);
-        acs.highCurrentX3 = true;
-        Serial.println(F("Proteccion de Consumo en X3"));
-        digitalWrite(out, OFF);
-      }
-    }
-  } else {
-    if (pin == ANALOGX1) {
-      bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 3, 0);
-    }
-    if (pin == ANALOGX2) {
-      bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 4, 0);
-    }
-    if (pin == ANALOGX3) {
-      bitWrite(VAR_WIRE_BYTE(VAR_ALARMS, 5), 5, 0);
-    }
-  }
+  enforceOvercurrent(pin, out, amp, ampMax, attemp);
   if (pin == ANALOGX1) {
     if (bitRead(VAR_WIRE_BYTE(VAR_ALARM_MASK, 5), 0) == 1) {
       if (amp <= VAR_WIRE_BYTE(VAR_DISCONNECTED, 2)) {
@@ -230,6 +239,55 @@ void sensorAmp(unsigned char output) {
   } else {
     sendAlarm(input);
   }
+}
+
+bool acsGuardMotor(unsigned char output) {
+  if (digitalRead(output) != ON) {
+    return false;
+  }
+  unsigned char pin = ANALOGX1;
+  unsigned int ampMax = (unsigned int)VAR_WIRE_BYTE(VAR_PROT_X1, 2) * 100u;
+  if (output == X3) {
+    pin = ANALOGX3;
+    ampMax = (unsigned int)VAR_WIRE_BYTE(VAR_PROT_X3, 2) * 100u;
+  } else if (output == X2) {
+    pin = ANALOGX2;
+    ampMax = (unsigned int)VAR_WIRE_BYTE(VAR_PROT_X2, 2) * 100u;
+  }
+  const unsigned int amp = convertADCtoAMP(pin);
+  if (pin == ANALOGX3) {
+    acs.ampX3 = amp;
+    VAR_WIRE_BYTE(VAR_AMP_X3, 2) = highByte(amp);
+    VAR_WIRE_BYTE(VAR_AMP_X3, 3) = lowByte(amp);
+  } else if (pin == ANALOGX2) {
+    acs.corriente_actual = amp / 100.0f;
+    VAR_WIRE_BYTE(VAR_AMP_X2, 2) = highByte(amp);
+    VAR_WIRE_BYTE(VAR_AMP_X2, 3) = lowByte(amp);
+  } else {
+    VAR_WIRE_BYTE(VAR_AMP_X1, 2) = highByte(amp);
+    VAR_WIRE_BYTE(VAR_AMP_X1, 3) = lowByte(amp);
+  }
+  const bool tripped = enforceOvercurrent(pin, output, amp, ampMax, false);
+  if ((amp >= ampMax) && (digitalRead(output) == ON)) {
+    if (pin == ANALOGX1) {
+      Serial.print(F("Proteccion de Consumo en X1: "));
+    } else if (pin == ANALOGX3) {
+      Serial.print(F("Proteccion de Consumo en X3: "));
+    } else {
+      Serial.print(F("Proteccion de Consumo en X2: "));
+    }
+    Serial.println(amp);
+    digitalWrite(output, OFF);
+  }
+  bitDisabledACS(0);
+  bitDisabledACS(1);
+  bitDisabledACS(2);
+  bitDisabledACS(3);
+  bitDisabledACS(4);
+  bitDisabledACS(5);
+  bitDisabledACS(6);
+  bitDisabledACS(7);
+  return tripped || (amp >= ampMax);
 }
 
 void bitDisabledACS(unsigned char positionBit) {

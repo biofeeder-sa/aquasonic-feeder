@@ -58,6 +58,7 @@ void acsResetWearCycleFlags(void);
 void configACS();
 void sendAlarm(unsigned char pin);
 void sensorAmp(unsigned char output);
+bool acsGuardMotor(unsigned char output);
 unsigned int readACS(unsigned char pin);
 void bitDisabledACS(unsigned char positionBit);
 bool acsEvaluateMotorSwap(uint16_t imaxX2, uint16_t imaxX3);

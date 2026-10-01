@@ -7,6 +7,51 @@
 #include "core/vars.h"
 #include <TimeLib.h>
 #include <EEPROM.h>
+
+static const unsigned long MOTOR_TEST_INRUSH_MS = 500;
+
+static void motorTestShutdownAll(void) {
+  digitalWrite(X1, OFF);
+  digitalWrite(X2, OFF);
+  digitalWrite(X3, OFF);
+}
+
+static bool motorTestSenseActive(unsigned long x1OnMs, unsigned long x2OnMs, unsigned long x3OnMs) {
+  const unsigned long now = millis();
+  bool tripped = false;
+  if ((x1OnMs != 0) && (digitalRead(X1) == ON) && ((now - x1OnMs) >= MOTOR_TEST_INRUSH_MS)) {
+    if (acsGuardMotor(X1)) {
+      tripped = true;
+    }
+  }
+  if ((x2OnMs != 0) && (digitalRead(X2) == ON) && ((now - x2OnMs) >= MOTOR_TEST_INRUSH_MS)) {
+    if (acsGuardMotor(X2)) {
+      tripped = true;
+    }
+  }
+  if ((x3OnMs != 0) && (digitalRead(X3) == ON) && ((now - x3OnMs) >= MOTOR_TEST_INRUSH_MS)) {
+    if (acsGuardMotor(X3)) {
+      tripped = true;
+    }
+  }
+  if (tripped) {
+    motorTestShutdownAll();
+    Serial.println(F("Test de motores abortado por exceso de consumo"));
+  }
+  return tripped;
+}
+
+static bool motorTestHold(unsigned long durationMs, unsigned long x1OnMs, unsigned long x2OnMs, unsigned long x3OnMs) {
+  const unsigned long t0 = millis();
+  while ((unsigned long)(millis() - t0) < durationMs) {
+    if (motorTestSenseActive(x1OnMs, x2OnMs, x3OnMs)) {
+      return false;
+    }
+    delay(20);
+  }
+  return true;
+}
+
 void setup()
 {
   /*****  INICIALIZACION DEL PUERTO SERIAL  *****/
@@ -43,18 +88,37 @@ void setup()
   initConfig();
   postInitConfig();
   sei(); // HABILITACION DE LAS INTERRUPCIONES GLOBALES
+  /* Test de arranque: misma proteccion de consumo que en dosificacion. */
+  unsigned long x1OnMs = 0;
+  unsigned long x2OnMs = 0;
+  unsigned long x3OnMs = 0;
+  bool motorTestOk = true;
   digitalWrite(X1, ON);
-  delay(1000);
-  digitalWrite(X2, ON);
-  delay(1000);
-  digitalWrite(X3, ON);
-  delay(1000);
-  /* Test de arranque de motor */
-  digitalWrite(X3, OFF);              //APAGAR MOTORES
-  delay(1000);
-  digitalWrite(X2, OFF);
-  delay(1000);
-  digitalWrite(X1, OFF);
+  x1OnMs = millis();
+  motorTestOk = motorTestHold(1000, x1OnMs, x2OnMs, x3OnMs);
+  if (motorTestOk) {
+    digitalWrite(X2, ON);
+    x2OnMs = millis();
+    motorTestOk = motorTestHold(1000, x1OnMs, x2OnMs, x3OnMs);
+  }
+  if (motorTestOk) {
+    digitalWrite(X3, ON);
+    x3OnMs = millis();
+    motorTestOk = motorTestHold(1000, x1OnMs, x2OnMs, x3OnMs);
+  }
+  if (motorTestOk) {
+    digitalWrite(X3, OFF);
+    x3OnMs = 0;
+    motorTestOk = motorTestHold(1000, x1OnMs, x2OnMs, x3OnMs);
+  }
+  if (motorTestOk) {
+    digitalWrite(X2, OFF);
+    x2OnMs = 0;
+    motorTestOk = motorTestHold(1000, x1OnMs, x2OnMs, x3OnMs);
+  }
+  motorTestShutdownAll();
+  acs.highCurrentX2 = false;
+  acs.highCurrentX3 = false;
   delay(2000);
 }
 void loop()
