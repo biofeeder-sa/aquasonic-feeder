@@ -5,7 +5,7 @@
 AcsState acs = {};
 
 void acsInit(void) {
-  acs.umbral = 5.5f;
+  acs.umbral = 0.0f;
   acs.corriente_minima = 10.0f;
   acs.previousAmpMinX2 = 10000;
   acs.previousAmpMinX3 = 10000;
@@ -375,7 +375,7 @@ void currentPeakCounter() {
     acs.corriente_maxima = acs.corriente_actual;
   }
   if ((acs.corriente_maxima - acs.corriente_minima) <= 1.5) {
-    acs.umbral = 5.5;
+    acs.umbral = 0.0;
   } else {
     acs.umbral = (acs.corriente_maxima + acs.corriente_minima) / 2;
   }
